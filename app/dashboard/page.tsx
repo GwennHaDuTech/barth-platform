@@ -4,6 +4,9 @@ import Link from "next/link";
 import styles from "./dashboard.module.css"; // Import du CSS*
 import { UserButton } from "@clerk/nextjs";
 import CreateAgentForm from "./CreateAgentForm"; // <--- IMPORT DU NOUVEAU FORMULAIRE
+const isProduction = process.env.NODE_ENV === "production";
+const domain = isProduction ? "barth-platform.vercel.app" : "localhost:3000";
+const protocol = isProduction ? "https" : "http";
 
 export default async function DashboardPage() {
   const agents = await prisma.agent.findMany({
@@ -44,11 +47,11 @@ export default async function DashboardPage() {
                   <div>
                     <span className={styles.agentName}>{agent.name}</span>
                     <a
-                      href={`http://${agent.subdomain}.localhost:3000`}
+                      href={`${protocol}://${agent.subdomain}.${domain}`}
                       target="_blank"
-                      className={styles.agentLink}
+                      className="text-sm text-blue-500 hover:underline block"
                     >
-                      {agent.subdomain}.localhost:3000 ↗
+                      {agent.subdomain}.{domain} ↗
                     </a>
                   </div>
 
