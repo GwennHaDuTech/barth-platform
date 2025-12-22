@@ -13,9 +13,11 @@
     "@clerk/localizations": "^3.32.1",
     "@clerk/nextjs": "^6.36.5",
     "@prisma/client": "^5.10.0",
+    "@uploadthing/react": "^7.3.3",
     "next": "16.1.0",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "uploadthing": "^7.7.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

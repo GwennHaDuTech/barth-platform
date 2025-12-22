@@ -29,6 +29,9 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   const subdomain = hostname.split(".")[0];
+  console.log("🔍 DEBUG MIDDLEWARE :");
+  console.log("   - Host complet :", hostname);
+  console.log("   - Sous-domaine détecté :", subdomain);
 
   // Si c'est le domaine principal, on laisse passer (Next.js gère le reste)
   if (

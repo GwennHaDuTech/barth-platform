@@ -3,6 +3,7 @@ import { createAgent, deleteAgent } from "../actions";
 import Link from "next/link";
 import styles from "./dashboard.module.css"; // Import du CSS*
 import { UserButton } from "@clerk/nextjs";
+import CreateAgentForm from "./CreateAgentForm"; // <--- IMPORT DU NOUVEAU FORMULAIRE
 
 export default async function DashboardPage() {
   const agents = await prisma.agent.findMany({
@@ -30,83 +31,7 @@ export default async function DashboardPage() {
 
         <div className={styles.grid}>
           {/* COLONNE GAUCHE : Formulaire */}
-          <div className={styles.panel}>
-            <h2 className={styles.subtitle}>Ajouter un Agent</h2>
-
-            <form action={createAgent}>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Prénom Nom</label>
-                <input
-                  name="name"
-                  type="text"
-                  required
-                  placeholder="Ex: Paul Durand"
-                  className={styles.input}
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Sous-domaine (URL)</label>
-                <input
-                  name="subdomain"
-                  type="text"
-                  required
-                  placeholder="paul"
-                  className={styles.input}
-                />
-                <p className={styles.hint}>
-                  Sera accessible sur paul.localhost:3000
-                </p>
-              </div>
-
-              <div className={styles.row}>
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Ville</label>
-                  <input
-                    name="city"
-                    type="text"
-                    required
-                    placeholder="Nantes"
-                    className={styles.input}
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Téléphone</label>
-                  <input
-                    name="phone"
-                    type="text"
-                    required
-                    placeholder="06..."
-                    className={styles.input}
-                  />
-                </div>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Bio</label>
-                <textarea
-                  name="bio"
-                  rows={3}
-                  placeholder="Description..."
-                  className={styles.textarea}
-                ></textarea>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={styles.label}>URL Photo (Optionnel)</label>
-                <input
-                  name="photo"
-                  type="text"
-                  placeholder="https://..."
-                  className={styles.input}
-                />
-              </div>
-
-              <button type="submit" className={styles.submitButton}>
-                Créer le site agent
-              </button>
-            </form>
-          </div>
+          <CreateAgentForm />
 
           {/* COLONNE DROITE : Liste */}
           <div className={styles.panel}>

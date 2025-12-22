@@ -5,7 +5,11 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "images.unsplash.com",
+        hostname: "images.unsplash.com", // Pour tes anciennes images
+      },
+      {
+        protocol: "https",
+        hostname: "utfs.io", // <--- Pour les nouvelles images UploadThing
       },
     ],
   },
