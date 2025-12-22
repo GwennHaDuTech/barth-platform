@@ -34,7 +34,8 @@ export default clerkMiddleware(async (auth, req) => {
   if (
     subdomain === "www" ||
     subdomain === "barthimmobilier" ||
-    subdomain === "localhost"
+    subdomain === "localhost" ||
+    subdomain === "barth-platform"
   ) {
     return NextResponse.next();
   }
