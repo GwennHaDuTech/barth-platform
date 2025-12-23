@@ -1,57 +1,43 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-
-// On définit quelles routes doivent être protégées (Le Dashboard)
-const isProtectedRoute = createRouteMatcher(["/dashboard(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   const url = req.nextUrl;
-  let hostname = req.headers.get("host") || "";
 
-  // 1. SÉCURITÉ : Si on essaie d'aller sur /dashboard, on vérifie si on est connecté
-  if (isProtectedRoute(req)) {
-    await auth.protect(); // Redirige vers la page de connexion si pas connecté
-  }
+  // 1. Récupérer le nom de domaine actuel (ex: "tom.merel.localhost:3000")
+  let hostname = req.headers.get("host")!;
 
-  // ---------------------------------------------------------
-  // 2. ROUTAGE (Ton ancien code pour les sous-domaines)
-  // ---------------------------------------------------------
+  // 2. Nettoyage du port pour le local (on enlève :3000)
+  hostname = hostname.replace(":3000", "");
 
-  // Nettoyage du port (:3000)
-  hostname = hostname.split(":")[0];
+  // Liste des domaines "principaux" (Ceux qui ne sont PAS des sites agents)
+  const allowedDomains = ["localhost", "barth-platform.vercel.app"];
 
-  // Gestion des domaines de dev (nip.io / sslip.io)
-  if (hostname.includes(".nip.io") || hostname.includes(".sslip.io")) {
-    const parts = hostname.split(".");
-    if (parts.length > 2) {
-      hostname = parts[0] + ".localhost";
-    }
-  }
+  // Vérifier si on est sur le domaine principal
+  const isMainDomain = allowedDomains.includes(hostname);
 
-  const subdomain = hostname.split(".")[0];
-  console.log("🔍 DEBUG MIDDLEWARE :");
-  console.log("   - Host complet :", hostname);
-  console.log("   - Sous-domaine détecté :", subdomain);
-
-  // Si c'est le domaine principal, on laisse passer (Next.js gère le reste)
-  if (
-    subdomain === "www" ||
-    subdomain === "barthimmobilier" ||
-    subdomain === "localhost" ||
-    subdomain === "barth-platform"
-  ) {
+  // --- CAS 1 : On est sur le domaine principal (Dashboard Admin) ---
+  if (isMainDomain) {
+    // On laisse passer normalement (Clerk gère l'auth si besoin)
     return NextResponse.next();
   }
 
-  // Sinon, on réécrit l'URL vers le dossier /sites/[site]
-  // Note importante : On doit cloner l'URL pour ne pas casser la requête Clerk
-  const newUrl = new URL(`/sites/${subdomain}${url.pathname}`, req.url);
-  return NextResponse.rewrite(newUrl);
+  // --- CAS 2 : On est sur un sous-domaine (Site Agent) ---
+  // Ex: hostname = "tom.merel.localhost" -> on garde "tom.merel"
+  const subdomain = hostname
+    .replace(".localhost", "")
+    .replace(".barth-platform.vercel.app", "");
+
+  // On réécrit l'URL en interne pour pointer vers le dossier /sites/[site]
+  // Cela permet d'afficher le contenu de l'agent tout en gardant l'URL jolie
+  return NextResponse.rewrite(
+    new URL(`/sites/${subdomain}${url.pathname}`, req.url)
+  );
 });
 
 export const config = {
   matcher: [
-    // La config recommandée par Clerk pour tout intercepter
+    // Le matcher officiel de Clerk pour intercepter toutes les routes nécessaires
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
   ],

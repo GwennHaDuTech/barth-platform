@@ -1,38 +1,33 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")  // <--- Juste le nom de la variable entre guillemets
-}
-// 1. Le Modèle "Agent" (Le Site)
-model Agent {
-  id          String    @id @default(cuid())
-  subdomain   String    @unique // ex: "julie" (C'est la clé pour le routing !)
-  name        String
-  city        String
-  photo       String
-  bio         String
-  phone       String
-  
-  // Relation : Un agent a plusieurs annonces
-  listings    Listing[]
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  url      = env("DATABASE_URL")
 }
 
-// 2. Le Modèle "Listing" (Les biens immobiliers)
+model Agent {
+  id        String   @id @default(cuid())
+  firstname String
+  lastname  String
+  subdomain String   @unique
+  name      String
+  email     String   @unique
+  photo     String?
+  bio       String?
+  phone     String?
+  city      String?
+  listings  Listing[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Listing {
-  id          Int      @id @default(autoincrement())
-  title       String
-  price       String
-  img         String
-  
-  // Relation inverse
-  agentId     String
-  agent       Agent    @relation(fields: [agentId], references: [id])
+  id        Int      @id @default(autoincrement())
+  title     String
+  price     String
+  img       String
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
 }

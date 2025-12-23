@@ -1,83 +1,75 @@
 /* app/sites/[site]/agent.module.css */
 
-/* --- GLOBAL --- */
 .container {
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  color: #333;
-  background-color: #fff;
+  color: #1a1a1a;
+  background-color: #f9f9f9;
   overflow-x: hidden;
 }
 
-/* --- HEADER --- */
+/* HEADER */
 .header {
+  background-color: #0c0c0c;
+  color: white;
+  padding: 1.5rem 3rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 4rem;
-  background: white;
-  /* border-bottom: 1px solid #f0f0f0; Optionnel si tu veux une ligne */
-}
-
-.logoContainer {
-  display: flex;
-  flex-direction: column;
-  line-height: 1;
+  border-bottom: 1px solid #333;
 }
 
 .logoTop {
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   letter-spacing: 2px;
-  color: #333;
+  color: #888;
   text-transform: uppercase;
 }
 
 .logoMain {
-  font-size: 2.5rem;
+  font-size: 1.8rem;
   font-weight: 700;
-  color: #b08d55; /* LE DORÉ */
-  letter-spacing: -1px;
+  letter-spacing: 4px;
+  color: #d4af37; /* BARTH GOLD */
 }
 
 .nav {
   display: flex;
-  align-items: center;
   gap: 2rem;
+  align-items: center;
 }
 
 .navLink {
+  color: #ccc;
   text-decoration: none;
-  color: #4a4a4a;
   font-size: 0.9rem;
-  font-weight: 500;
-  transition: color 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: color 0.3s;
 }
 
 .navLink:hover {
-  color: #b08d55;
+  color: #d4af37;
 }
 
 .ctaButton {
-  background-color: #b08d55;
-  color: white;
+  background-color: #d4af37;
+  color: #0c0c0c;
   padding: 0.8rem 1.5rem;
+  font-weight: bold;
+  font-size: 0.8rem;
   text-decoration: none;
-  font-size: 0.85rem;
-  font-weight: 700;
-  border-radius: 2px;
-  letter-spacing: 0.5px;
-  transition: background 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: background 0.3s;
 }
 
 .ctaButton:hover {
-  background-color: #967645;
+  background-color: #bfa345;
 }
 
-/* --- HERO --- */
+/* HERO */
 .hero {
-  position: relative;
-  height: 600px;
-  /* Remplace par ta vraie image ici */
-  background-image: url("https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1600&q=80");
+  height: 80vh;
   background-size: cover;
   background-position: center;
   display: flex;
@@ -87,286 +79,136 @@
   color: white;
 }
 
-/* Le voile noir par dessus l'image pour lire le texte */
-.heroOverlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-}
-
 .heroContent {
-  position: relative;
-  z-index: 2;
   max-width: 800px;
-  padding: 0 2rem;
+  padding: 2rem;
 }
 
 .heroTitle {
-  font-size: 2.8rem;
-  font-weight: 700;
+  font-size: 3rem;
+  font-weight: 300;
   margin-bottom: 1.5rem;
   line-height: 1.2;
 }
 
 .heroSubtitle {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
+  color: #ddd;
   margin-bottom: 2.5rem;
-  font-weight: 400;
+  font-weight: 300;
 }
 
 .heroButton {
-  display: inline-block;
-  background-color: #b08d55;
-  color: white;
+  border: 2px solid #d4af37;
+  color: #d4af37;
   padding: 1rem 2rem;
   text-decoration: none;
-  font-weight: 700;
-  font-size: 0.9rem;
-  border-radius: 3px;
-  letter-spacing: 1px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: bold;
+  transition: all 0.3s;
 }
 
-/* --- SERVICES --- */
+.heroButton:hover {
+  background-color: #d4af37;
+  color: #000;
+}
+
+/* SERVICES */
 .servicesSection {
   display: flex;
-  justify-content: center;
-  gap: 2rem;
-  padding: 4rem 2rem;
-  background-color: #f9f9f9;
-  margin-top: -50px; /* Effet de chevauchement léger optionnel */
+  flex-wrap: wrap;
+  max-width: 1200px;
+  margin: -50px auto 4rem; /* Chevauchement sur le Hero */
   position: relative;
-  z-index: 3;
+  z-index: 10;
+  gap: 2rem;
+  padding: 0 1rem;
+  justify-content: center;
 }
 
 .cardWhite,
 .cardGold {
+  flex: 1;
+  min-width: 300px;
   padding: 3rem;
-  width: 400px;
-  text-align: center;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
 .cardWhite {
   background: white;
-  border: 1px solid #eee;
+  color: #1a1a1a;
 }
 
 .cardGold {
-  background-color: #b08d55;
-  color: white;
+  background: #d4af37;
+  color: #0c0c0c;
 }
 
 .cardTitle {
-  color: #594a3c;
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   margin-bottom: 1rem;
-  font-weight: 700;
+  color: #d4af37;
 }
 
 .cardTitleWhite {
-  color: white;
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   margin-bottom: 1rem;
-  font-weight: 700;
-}
-
-.cardText {
-  color: #666;
-  margin-bottom: 2rem;
-  line-height: 1.6;
-  font-size: 0.95rem;
-}
-
-.cardTextWhite {
-  color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 2rem;
-  line-height: 1.6;
-  font-size: 0.95rem;
-}
-
-.cardLink {
-  text-decoration: none;
-  color: #594a3c;
-  font-weight: 700;
-  font-size: 0.85rem;
-  border: 1px solid #ddd;
-  padding: 1rem 1.5rem;
-  display: inline-block;
-  transition: all 0.2s;
+  color: #0c0c0c;
 }
 
 .cardButtonWhite {
-  background: white;
-  color: #b08d55;
-  text-decoration: none;
-  font-weight: 700;
-  font-size: 0.85rem;
-  padding: 1rem 1.5rem;
   display: inline-block;
+  margin-top: 1.5rem;
+  background: #0c0c0c;
+  color: #d4af37;
+  padding: 0.8rem 1.5rem;
+  text-decoration: none;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.8rem;
 }
 
-/* --- ABOUT --- */
+/* ABOUT */
 .aboutSection {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 6rem auto;
   padding: 0 2rem;
+  display: flex;
   align-items: center;
   gap: 4rem;
 }
 
+.aboutTextCol {
+  flex: 1;
+}
+
 .sectionTitleLeft {
-  color: #594a3c;
-  font-size: 1.8rem;
+  font-size: 2.5rem;
+  font-weight: 300;
   margin-bottom: 1.5rem;
-  font-weight: 700;
+  color: #0c0c0c;
 }
 
 .text {
   color: #555;
-  line-height: 1.8;
+  line-height: 1.6;
   margin-bottom: 1.5rem;
-}
-
-.quote {
-  font-style: italic;
-  color: #333;
-  font-weight: 500;
-  margin-bottom: 2rem;
-}
-
-.outlineButton {
-  display: inline-block;
-  border: 2px solid #594a3c;
-  color: #594a3c;
-  padding: 0.8rem 2rem;
-  text-decoration: none;
-  font-weight: 700;
-  font-size: 0.85rem;
-  letter-spacing: 1px;
 }
 
 .profileImage {
-  width: 100%;
-  max-width: 400px;
-  height: 400px;
+  width: 350px;
+  height: 450px;
   object-fit: cover;
-  background-color: #ddd; /* Gris par défaut */
-  border-radius: 4px;
+  box-shadow: 20px 20px 0px #d4af37; /* Effet décalé */
 }
 
-/* --- CITY / SEO --- */
-.citySection {
-  background-color: #fcfcfc;
-  padding: 4rem 2rem;
-  text-align: center;
-}
-
-.sectionTitleCenter {
-  color: #594a3c;
-  font-size: 1.8rem;
-  margin-bottom: 1.5rem;
-  font-weight: 700;
-  text-align: center;
-}
-
-.textCenter {
-  max-width: 800px;
-  margin: 0 auto 1.5rem;
-  color: #555;
-  line-height: 1.8;
-}
-
-.goldText {
-  color: #b08d55;
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-
-/* --- SECTIONS VIDES --- */
-.divider {
-  width: 50px;
-  height: 3px;
-  background-color: #b08d55;
-  margin: 0 auto 2rem;
-}
-
-.emptyState {
-  text-align: center;
-  color: #888;
-  padding: 3rem;
-  border: 1px dashed #ddd;
-  max-width: 800px;
-  margin: 0 auto;
-  border-radius: 8px;
-}
-
-.listingsSection,
-.salesSection {
-  padding: 4rem 2rem;
-}
-
-/* --- FOOTER --- */
+/* FOOTER */
 .footer {
-  background-color: #594a3c; /* MARRON FONCÉ */
-  color: white;
-  padding: 4rem 2rem 2rem;
+  background: #0c0c0c;
+  color: #555;
   text-align: center;
-}
-
-.footerContent h4 {
-  color: #b08d55;
-  margin-bottom: 1rem;
-  font-size: 1.2rem;
-}
-
-.footerContent p {
-  margin-bottom: 0.5rem;
-  color: #ccc;
-}
-
-.copyright {
-  margin-top: 3rem;
-  padding-top: 2rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2rem;
+  margin-top: 4rem;
   font-size: 0.8rem;
-  color: #888;
-}
-
-/* --- RESPONSIVE MOBILE --- */
-@media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    padding: 1rem;
-    gap: 1rem;
-  }
-  .nav {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1rem;
-  }
-  .servicesSection {
-    flex-direction: column;
-    align-items: center;
-  }
-  .cardWhite,
-  .cardGold {
-    width: 100%;
-    max-width: 350px;
-  }
-  .aboutSection {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-  .profileImage {
-    margin: 0 auto;
-  }
-  .heroTitle {
-    font-size: 2rem;
-  }
 }

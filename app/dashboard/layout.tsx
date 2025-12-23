@@ -10,15 +10,17 @@ export default function DashboardLayout({
 }) {
   return (
     // 👇 C'EST CETTE LIGNE QUI CHANGE TOUT 👇
-    <div className="min-h-screen text-white flex bg-barth-dark bg-barth-bg bg-cover bg-center bg-no-repeat bg-blend-overlay bg-black/70">
+    <div
+      className="min-h-screen flex text-white bg-barth-dark bg-cover bg-center bg-no-repeat bg-blend-overlay bg-black/70"
+      style={{ backgroundImage: "url('/background.jpg')" }} // <--- On force l'image ici pour tester
+    >
+      {" "}
       {/* 1. Sidebar Gauche (Navigation) */}
       <Sidebar />
-
       {/* 2. Contenu Principal Central */}
       <main className="flex-1 p-8 overflow-y-auto h-screen">
         <div className="max-w-6xl mx-auto h-full flex flex-col">{children}</div>
       </main>
-
       {/* 3. Sidebar Droite (Notifications) */}
       <RightSidebar />
     </div>

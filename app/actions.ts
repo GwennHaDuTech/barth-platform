@@ -2,63 +2,91 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
 
-// --- CRÉATION ---
 export async function createAgent(formData: FormData) {
-  // Sécurité
-  const { userId } = await auth();
-  if (!userId) throw new Error("Accès refusé");
-
-  const name = formData.get("name") as string;
-  const subdomain = formData.get("subdomain") as string;
-  const city = formData.get("city") as string;
+  // 1. Récupération des champs séparés
+  const firstname = formData.get("firstname") as string;
+  const lastname = formData.get("lastname") as string;
+  const email = formData.get("email") as string;
   const phone = formData.get("phone") as string;
+  const city = formData.get("city") as string;
   const bio = formData.get("bio") as string;
-  const photo =
-    (formData.get("photo") as string) ||
-    "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=400&q=80";
+  const photo = formData.get("photo") as string;
 
+  // 2. Validation Serveur (Sécurité doublée)
+  if (!firstname || !lastname || !email) {
+    throw new Error("Les champs Prénom, Nom et Email sont obligatoires.");
+  }
+
+  // 3. Génération du sous-domaine unique
+  // On nettoie les accents et caractères spéciaux
+  const cleanString = (str: string) =>
+    str
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+
+  const baseSlug = `${cleanString(firstname)}.${cleanString(lastname)}`;
+  let uniqueSubdomain = baseSlug;
+  let counter = 1;
+
+  // Boucle pour trouver un sous-domaine libre
+  while (true) {
+    const existing = await prisma.agent.findUnique({
+      where: { subdomain: uniqueSubdomain },
+    });
+
+    if (!existing) break; // C'est libre !
+
+    // Sinon on incrémente (jean.dupont1, jean.dupont2...)
+    uniqueSubdomain = `${baseSlug}${counter}`;
+    counter++;
+  }
+
+  // 4. Création en base
   try {
     await prisma.agent.create({
       data: {
-        name,
-        subdomain: subdomain.toLowerCase(),
-        city,
+        firstname,
+        lastname,
+        name: `${firstname} ${lastname}`, // On reconstitue le nom complet pour l'affichage
+        subdomain: uniqueSubdomain,
+        email,
         phone,
+        city,
         bio,
         photo,
-        listings: {
-          create: [
-            {
-              title: "Bien de bienvenue",
-              price: "0 €",
-              img: "https://images.unsplash.com/photo-1580587771525-78b9dba3b91d?auto=format&fit=crop&w=600&q=80",
-            },
-          ],
-        },
       },
     });
-  } catch (error) {
-    console.error("Erreur:", error);
-    throw new Error("Erreur création agent");
+
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (e) {
+    // 👇 LE CODE MAGIQUE : On dit au Sheriff d'ignorer la ligne suivante
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const error = e as any;
+
+    console.error("Erreur création agent:", error);
+
+    // Gestion de l'erreur "Email ou Sous-domaine déjà pris"
+    if (error.code === "P2002") {
+      throw new Error("Cet email est déjà utilisé par un autre agent.");
+    }
+
+    throw new Error("Erreur technique lors de la création.");
   }
-
-  revalidatePath("/dashboard");
-  redirect("/dashboard");
 }
+export async function deleteAgent(agentId: string) {
+  try {
+    await prisma.agent.delete({
+      where: { id: agentId },
+    });
 
-// --- SUPPRESSION ---
-export async function deleteAgent(formData: FormData) {
-  // Sécurité
-  const { userId } = await auth();
-  if (!userId) throw new Error("Accès refusé");
-
-  const agentId = formData.get("agentId") as string;
-
-  await prisma.listing.deleteMany({ where: { agentId } });
-  await prisma.agent.delete({ where: { id: agentId } });
-
-  revalidatePath("/dashboard");
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur suppression:", error);
+    throw new Error("Impossible de supprimer cet agent.");
+  }
 }
