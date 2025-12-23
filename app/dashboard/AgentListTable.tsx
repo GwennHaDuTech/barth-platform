@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { deleteAgent } from "@/app/actions";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 // 1. On définit ce qu'est un Agent pour TypeScript
 interface Agent {
@@ -41,8 +42,18 @@ export default function AgentListTable({
     try {
       await deleteAgent(selectedAgent.id);
       setSelectedAgent(null);
+      toast.success("Site supprimé", {
+        description: `Le site de ${selectedAgent.name} a été retiré.`,
+        icon: <Trash2 className="text-red-500" size={18} />, // Icône personnalisée
+        style: {
+          border: "1px solid rgba(239, 68, 68, 0.2)", // Bordure rouge très fine pour la suppression
+        },
+      });
     } catch (error) {
-      alert("Erreur lors de la suppression");
+      // 👇 NOTIFICATION D'ERREUR
+      toast.error("Erreur", {
+        description: "Impossible de supprimer l'agent pour le moment.",
+      });
     } finally {
       setIsDeleting(false);
     }

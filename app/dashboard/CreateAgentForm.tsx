@@ -5,7 +5,8 @@ import { UploadButton } from "../utils/uploadthing";
 import { useRouter } from "next/navigation";
 import { X, Loader2, AlertCircle, Lock } from "lucide-react";
 import { createAgent } from "@/app/actions";
-import Image from "next/image"; // Ajoute cette ligne avec les autres imports
+import Image from "next/image";
+import { toast } from "sonner";
 
 // 1. DÉFINITION DE L'INTERFACE
 interface AgentFormData {
@@ -146,6 +147,12 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
         createAgent(dataToSend),
         new Promise((resolve) => setTimeout(resolve, 6000)),
       ]);
+      toast.success("Félicitations ! ✨", {
+        description: `Le site de ${formData.firstname} est maintenant en ligne.`,
+        style: {
+          border: "1px solid rgba(212, 175, 55, 0.8)", // Bordure dorée plus marquée pour le succès
+        },
+      });
 
       router.refresh();
       onClose();
