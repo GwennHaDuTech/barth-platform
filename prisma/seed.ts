@@ -29,31 +29,7 @@ async function main() {
     },
   });
 
-  // 2. Créer Thomas
-  const thomas = await prisma.agent.upsert({
-    where: { subdomain: "thomas" },
-    update: {},
-    create: {
-      subdomain: "thomas",
-      name: "Thomas Dubois",
-      city: "Saint-Malo",
-      photo:
-        "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=400&q=80",
-      bio: "Spécialiste vue mer et investissement locatif sur la côte.",
-      phone: "06 98 76 54 32",
-      listings: {
-        create: [
-          {
-            title: "Villa Vue Mer",
-            price: "850 000 €",
-            img: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80",
-          },
-        ],
-      },
-    },
-  });
-
-  console.log("Base de données remplie avec :", { julie, thomas });
+  console.log("Base de données remplie avec :", { julie });
 }
 
 main()
