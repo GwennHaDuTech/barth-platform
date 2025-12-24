@@ -9,23 +9,20 @@ async function main() {
     update: {},
     create: {
       subdomain: "julie",
+      firstname: "Julie", // 👈 Ajouté
+      lastname: "Martin", // 👈 Ajouté
       name: "Julie Martin",
+      email: "julie@martin.fr", // 👈 Ajouté
       city: "Rennes Centre",
-      photo:
-        "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80",
-      bio: "Passionnée par l'architecture rennaise, je vous accompagne depuis 10 ans.",
+      photo: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2",
+      bio: "Experte du centre-ville rennais depuis 10 ans.",
       phone: "06 12 34 56 78",
       listings: {
         create: [
           {
-            title: "Appartement T3 Thabor",
-            price: "350 000 €",
-            img: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=600&q=80",
-          },
-          {
-            title: "Loft Centre Historique",
-            price: "520 000 €",
-            img: "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=600&q=80",
+            title: "Appartement de prestige Place des Lices",
+            price: "450 000 €",
+            img: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688",
           },
         ],
       },
