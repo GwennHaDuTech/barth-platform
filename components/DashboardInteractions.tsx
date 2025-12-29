@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import GlassCard from "./ui/GlassCard";
-import CreateAgentForm from "@/app/dashboard/CreateAgentForm"; // Ajuste le chemin si besoin
+import CreateAgentForm from "@/app/dashboard/CreateagentForm/CreateAgentForm"; // Ajuste le chemin si besoin
 
 export default function DashboardInteractions() {
   const [showAgentForm, setShowAgentForm] = useState(false);

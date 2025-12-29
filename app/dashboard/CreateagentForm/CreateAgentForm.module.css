@@ -1,0 +1,251 @@
+/* components/createagentform/CreateAgentForm.module.css */
+
+.container {
+  /* Structure Flex & Position */
+  display: flex;
+  flex-direction: column;
+  position: relative;
+
+  /* Apparence (Equivalent backdrop-blur-xl rounded-3xl shadow-2xl) */
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px); /* Support Safari */
+  border-radius: 1.5rem; /* rounded-3xl */
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); /* shadow-2xl */
+
+  /* Animation */
+  transition: all 700ms cubic-bezier(0.4, 0, 0.2, 1); /* ease-in-out */
+
+  /* Couleurs */
+  background-color: rgba(10, 10, 10, 0.95);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  opacity: 0.98;
+}
+
+/* État : Formulaire classique */
+.modeForm {
+  width: 100%;
+  max-width: 56rem; /* max-w-4xl */
+  padding: 2rem; /* p-8 */
+  max-height: 90vh;
+  min-height: 600px;
+  overflow-y: auto;
+}
+
+/* État : Chargement (Petite box centrée) */
+.modeLoading {
+  width: 100%;
+  max-width: 28rem; /* max-w-md */
+  padding: 2.5rem; /* p-10 */
+  min-height: 300px;
+  align-items: center;
+  justify-content: center;
+  margin: auto;
+}
+
+/* --- TEXTES --- */
+.title {
+  font-size: 1.5rem; /* text-2xl */
+  line-height: 2rem;
+  font-weight: 300; /* font-light */
+  color: white;
+  margin-bottom: 0.5rem;
+}
+
+.goldText {
+  color: #d4af37;
+  font-weight: 700; /* font-bold */
+}
+
+.label {
+  color: #d4af37;
+  display: block;
+  font-size: 0.875rem; /* text-sm */
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.helperText {
+  font-size: 0.75rem; /* text-xs */
+  color: rgb(107, 114, 128); /* text-gray-500 */
+  margin-top: 0.5rem;
+}
+
+/* --- INPUTS --- */
+.input {
+  width: 100%;
+  border-radius: 0.75rem; /* rounded-xl */
+  padding: 0.75rem 1rem; /* px-4 py-3 */
+  color: white;
+
+  /* Equivalent focus:outline-none focus:ring-1 transition */
+  outline: none;
+  transition-property: color, background-color, border-color,
+    text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.input::placeholder {
+  color: rgb(107, 114, 128); /* text-gray-500 */
+}
+
+.input:focus {
+  border-color: #d4af37;
+  box-shadow: 0 0 0 1px #d4af37; /* ring-1 */
+}
+
+.inputReadOnly {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.inputError {
+  border-color: rgba(239, 68, 68, 0.5); /* red-500/50 */
+}
+.inputError:focus {
+  border-color: rgb(239, 68, 68); /* red-500 */
+}
+
+.inputIconPadding {
+  padding-left: 3rem; /* pl-12 */
+}
+
+/* --- BOUTONS --- */
+.closeButton {
+  position: absolute;
+  top: 1.5rem; /* top-6 */
+  right: 1.5rem; /* right-6 */
+  color: rgb(156, 163, 175); /* text-gray-400 */
+  transition: color 150ms;
+  z-index: 20;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.closeButton:hover {
+  color: white;
+}
+
+.btnBack {
+  padding: 0.75rem 1.5rem; /* px-6 py-3 */
+  border-radius: 0.75rem;
+  color: rgb(156, 163, 175);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 150ms;
+}
+.btnBack:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.btnNext {
+  padding: 0.75rem 2rem; /* px-8 py-3 */
+  border-radius: 0.75rem;
+  background-color: white;
+  color: black;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 150ms;
+}
+.btnNext:hover {
+  background-color: rgb(243, 244, 246); /* gray-100 */
+}
+.btnNext:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btnSubmit {
+  padding: 0.75rem 2rem;
+  border-radius: 0.75rem;
+  color: black;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 150ms;
+  background: linear-gradient(to right, #d4af37, #b08d57);
+  box-shadow: 0 10px 15px -3px rgba(212, 175, 55, 0.2);
+}
+.btnSubmit:hover {
+  transform: scale(1.05);
+}
+.btnSubmit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.uploadBox {
+  border: 1px dashed rgba(212, 175, 55, 0.3);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.05);
+  transition: background-color 150ms;
+  min-height: 120px;
+}
+.uploadBox:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* --- BARRE DE PROGRESSION --- */
+.progressContainer {
+  width: 100%;
+  height: 0.25rem; /* h-1 */
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  background: linear-gradient(to right, #d4af37, #b08d57);
+  transition: width 500ms ease-out;
+}
+
+/* --- ALERTS --- */
+.errorBox {
+  background-color: rgba(239, 68, 68, 0.1); /* red-500/10 */
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  animation: appear 0.3s ease-out forwards;
+}
+
+@keyframes appear {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.bioCounterValid {
+  color: rgb(74, 222, 128); /* green-400 */
+  font-weight: 700;
+}
+
+.bioCounterInvalid {
+  color: rgb(107, 114, 128); /* gray-500 */
+}

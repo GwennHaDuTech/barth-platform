@@ -3,22 +3,61 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+export async function checkAgentDuplication(
+  firstname: string,
+  lastname: string
+) {
+  try {
+    const existing = await prisma.agent.findFirst({
+      where: {
+        firstname: { equals: firstname, mode: "insensitive" }, // Insensitive = ignore majuscules
+        lastname: { equals: lastname, mode: "insensitive" },
+      },
+    });
+    return !!existing; // Renvoie true si trouvé (donc doublon), false si c'est libre
+  } catch (error) {
+    console.error("Erreur vérification doublon:", error);
+    return false; // Dans le doute, on laisse passer (la sécurité finale bloquera)
+  }
+}
+
 export async function createAgent(formData: FormData) {
-  // 1. Récupération des champs
+  // 1. Récupération des champs standards
   const firstname = formData.get("firstname") as string;
   const lastname = formData.get("lastname") as string;
   const email = formData.get("email") as string;
   const phone = formData.get("phone") as string;
-  const city = formData.get("city") as string;
-  const bio = formData.get("bio") as string;
   const photo = formData.get("photo") as string;
+  const bio = formData.get("bio") as string;
 
-  // 2. Validation (Côté Serveur)
-  if (!firstname || !lastname || !email || !phone || !bio || !city || !photo) {
-    return { success: false, error: "Tous les champs sont obligatoires." };
+  // 2. Récupération des NOUVEAUX champs (Secteurs & Réseaux)
+  const city = formData.get("city") as string; // Secteur principal
+  const secondarySector = formData.get("secondarySector") as string; // Secteur secondaire
+
+  const instagram = formData.get("instagram") as string;
+  const linkedin = formData.get("linkedin") as string;
+  const tiktok = formData.get("tiktok") as string;
+
+  // 3. Validation Serveur
+  // On rend le secteur secondaire obligatoire comme demandé
+  if (
+    !firstname ||
+    !lastname ||
+    !email ||
+    !phone ||
+    !bio ||
+    !city ||
+    !secondarySector ||
+    !photo
+  ) {
+    return {
+      success: false,
+      error:
+        "Tous les champs obligatoires (y compris les 2 secteurs) doivent être remplis.",
+    };
   }
 
-  // 3. Génération du sous-domaine unique
+  // 4. Génération du sous-domaine unique
   const cleanString = (str: string) =>
     str
       .normalize("NFD")
@@ -39,7 +78,7 @@ export async function createAgent(formData: FormData) {
     counter++;
   }
 
-  // 4. Création en base de données
+  // 5. Création en base de données avec les nouveaux champs
   try {
     await prisma.agent.create({
       data: {
@@ -50,6 +89,10 @@ export async function createAgent(formData: FormData) {
         email,
         phone,
         city,
+        secondarySector, // Nouveau
+        instagram, // Nouveau
+        linkedin, // Nouveau
+        tiktok, // Nouveau
         bio,
         photo,
       },
@@ -62,12 +105,11 @@ export async function createAgent(formData: FormData) {
     const error = e as any;
     console.error("Erreur création agent:", error);
 
-    // GESTION DU DOUBLON (Code Prisma P2002)
     if (error.code === "P2002") {
       return {
         success: false,
         error:
-          "Un autre agent utilise déjà cet email ou ce nom. Merci d'ajouter un chiffre à ton nom pour qu'il soit unique.",
+          "Un autre agent utilise déjà cet email ou ce nom. Ajoute un chiffre au nom si nécessaire.",
       };
     }
 
@@ -75,7 +117,9 @@ export async function createAgent(formData: FormData) {
   }
 }
 
+// ... garde ta fonction deleteAgent en dessous, elle ne change pas
 export async function deleteAgent(agentId: string) {
+  // ... ton code existant ...
   try {
     await prisma.agent.delete({
       where: { id: agentId },

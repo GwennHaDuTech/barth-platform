@@ -18,6 +18,10 @@ model Agent {
   bio       String?
   phone     String?
   city      String?
+  secondarySector String?  // Optionnel
+  instagram       String?  // Optionnel
+  linkedin        String?  // Optionnel
+  tiktok          String?  // Optionnel
   listings  Listing[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
