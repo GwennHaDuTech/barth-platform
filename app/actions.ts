@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
 export async function createAgent(formData: FormData) {
-  // 1. Récupération des champs séparés
+  // 1. Récupération des champs
   const firstname = formData.get("firstname") as string;
   const lastname = formData.get("lastname") as string;
   const email = formData.get("email") as string;
@@ -13,13 +13,12 @@ export async function createAgent(formData: FormData) {
   const bio = formData.get("bio") as string;
   const photo = formData.get("photo") as string;
 
-  // 2. Validation Serveur (Sécurité doublée)
-  if (!firstname || !lastname || !email) {
-    throw new Error("Les champs Prénom, Nom et Email sont obligatoires.");
+  // 2. Validation (Côté Serveur)
+  if (!firstname || !lastname || !email || !phone || !bio || !city || !photo) {
+    return { success: false, error: "Tous les champs sont obligatoires." };
   }
 
   // 3. Génération du sous-domaine unique
-  // On nettoie les accents et caractères spéciaux
   const cleanString = (str: string) =>
     str
       .normalize("NFD")
@@ -31,26 +30,22 @@ export async function createAgent(formData: FormData) {
   let uniqueSubdomain = baseSlug;
   let counter = 1;
 
-  // Boucle pour trouver un sous-domaine libre
   while (true) {
     const existing = await prisma.agent.findUnique({
       where: { subdomain: uniqueSubdomain },
     });
-
-    if (!existing) break; // C'est libre !
-
-    // Sinon on incrémente (jean.dupont1, jean.dupont2...)
+    if (!existing) break;
     uniqueSubdomain = `${baseSlug}${counter}`;
     counter++;
   }
 
-  // 4. Création en base
+  // 4. Création en base de données
   try {
     await prisma.agent.create({
       data: {
         firstname,
         lastname,
-        name: `${firstname} ${lastname}`, // On reconstitue le nom complet pour l'affichage
+        name: `${firstname} ${lastname}`,
         subdomain: uniqueSubdomain,
         email,
         phone,
@@ -63,20 +58,23 @@ export async function createAgent(formData: FormData) {
     revalidatePath("/dashboard");
     return { success: true };
   } catch (e) {
-    // 👇 LE CODE MAGIQUE : On dit au Sheriff d'ignorer la ligne suivante
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const error = e as any;
-
     console.error("Erreur création agent:", error);
 
-    // Gestion de l'erreur "Email ou Sous-domaine déjà pris"
+    // GESTION DU DOUBLON (Code Prisma P2002)
     if (error.code === "P2002") {
-      throw new Error("Cet email est déjà utilisé par un autre agent.");
+      return {
+        success: false,
+        error:
+          "Un autre agent utilise déjà cet email ou ce nom. Merci d'ajouter un chiffre à ton nom pour qu'il soit unique.",
+      };
     }
 
-    throw new Error("Erreur technique lors de la création.");
+    return { success: false, error: "Erreur technique lors de la création." };
   }
 }
+
 export async function deleteAgent(agentId: string) {
   try {
     await prisma.agent.delete({
@@ -87,6 +85,6 @@ export async function deleteAgent(agentId: string) {
     return { success: true };
   } catch (error) {
     console.error("Erreur suppression:", error);
-    throw new Error("Impossible de supprimer cet agent.");
+    return { success: false, error: "Impossible de supprimer cet agent." };
   }
 }

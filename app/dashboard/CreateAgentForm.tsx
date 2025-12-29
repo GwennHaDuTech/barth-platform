@@ -50,6 +50,7 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
 
   const [imageUrl, setImageUrl] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [serverError, setServerError] = useState<string | null>(null); // 👈 Ajouté pour les doublons
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingText, setLoadingText] = useState(loadingMessages[0]);
 
@@ -65,9 +66,6 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
     }
     return () => clearInterval(interval);
   }, [isSubmitting]);
-
-  // ❌ J'AI SUPPRIMÉ LE USEEFFECT "MAGIE EMAIL" D'ICI
-  // On gère ça directement dans handleChange plus bas 👇
 
   // --- VALIDATION ---
   const validateField = (name: string, value: string) => {
@@ -88,49 +86,44 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
     return error;
   };
 
-  // 📧 NOUVEAU HANDLECHANGE INTELLIGENT
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-
-    // 1. Gestion des erreurs
     const error = validateField(name, value);
     setErrors((prev) => ({ ...prev, [name]: error }));
+    setServerError(null); // On efface l'erreur serveur si l'utilisateur modifie un champ
 
-    // 2. Mise à jour des données + Calcul Email immédiat
     setFormData((prev: AgentFormData) => {
-      // On prépare la nouvelle version des données
       const newData = { ...prev, [name]: value };
-
-      // Si on est en train de modifier le Nom ou le Prénom...
       if (name === "firstname" || name === "lastname") {
         const fName = cleanString(newData.firstname);
         const lName = cleanString(newData.lastname);
-
-        // ... on met à jour l'email tout de suite !
         if (fName && lName) {
           newData.email = `${fName}.${lName}@barth-immo.fr`;
         } else {
-          newData.email = ""; // Vide si incomplet
+          newData.email = "";
         }
       }
-
       return newData;
     });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setServerError(null);
 
     const hasErrors =
       Object.values(errors).some((err) => err !== "") ||
       !formData.firstname ||
       !formData.lastname ||
-      !formData.phone;
+      !formData.phone ||
+      !imageUrl;
 
     if (hasErrors) {
-      alert("Merci de corriger les erreurs avant de valider.");
+      toast.error("Formulaire incomplet", {
+        description: "Vérifie les champs et n'oublie pas la photo.",
+      });
       return;
     }
 
@@ -143,22 +136,29 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
       });
       dataToSend.append("photo", imageUrl);
 
-      await Promise.all([
-        createAgent(dataToSend),
-        new Promise((resolve) => setTimeout(resolve, 6000)),
-      ]);
+      // Appel de l'action serveur
+      const result = await createAgent(dataToSend);
+
+      if (result && !result.success) {
+        setServerError(result.error || "Une erreur est survenue.");
+        setIsSubmitting(false);
+        toast.error("Action impossible", { description: result.error });
+        return;
+      }
+
+      // Délai pour l'animation visuelle
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
       toast.success("Félicitations ! ✨", {
         description: `Le site de ${formData.firstname} est maintenant en ligne.`,
-        style: {
-          border: "1px solid rgba(212, 175, 55, 0.8)", // Bordure dorée plus marquée pour le succès
-        },
+        style: { border: "1px solid rgba(212, 175, 55, 0.8)" },
       });
 
       router.refresh();
       onClose();
     } catch (error) {
       console.error(error);
-      alert("Une erreur est survenue.");
+      setServerError("Erreur technique. Merci de réessayer.");
       setIsSubmitting(false);
     }
   };
@@ -204,13 +204,12 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
             <div className="absolute inset-0 bg-barth-gold blur-xl opacity-20 animate-pulse rounded-full"></div>
             <Loader2 className="w-16 h-16 text-barth-gold animate-spin relative z-10" />
           </div>
-          <p className="text-xl text-white font-light text-center animate-in fade-in slide-in-from-bottom-4 duration-500 key={loadingText}">
+          <p className="text-xl text-white font-light text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
             {loadingText}
           </p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Ligne 1 : Prénom & Nom */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className={labelStyle}>Prénom</label>
@@ -248,7 +247,6 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {/* Ligne 2 : Email & Téléphone */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="relative group">
               <label className={labelStyle}>
@@ -266,9 +264,6 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
                   <Lock size={16} />
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Identifiant de connexion unique.
-              </p>
             </div>
             <div>
               <label className={labelStyle}>Téléphone</label>
@@ -289,7 +284,6 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {/* Ligne 3 : Ville */}
           <div>
             <label className={labelStyle}>Ville Principale</label>
             <input
@@ -301,14 +295,11 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
             />
           </div>
 
-          {/* Ligne 4 : Bio */}
           <div className="col-span-1 md:col-span-2">
-            <label className={labelStyle}>
-              {`Biographie complète (c'est important pour le SEO ! )`}
-            </label>
+            <label className={labelStyle}>Biographie complète (SEO)</label>
             <textarea
               name="bio"
-              placeholder="Racontez votre parcours, votre passion pour l'immobilier..."
+              placeholder="Racontez votre parcours..."
               rows={5}
               className={`${inputStyle(
                 false
@@ -317,20 +308,17 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
             />
           </div>
 
-          {/* Upload Photo */}
           <div>
             <label className={labelStyle}>Photo de profil</label>
             <div className="border border-dashed border-barth-gold/30 rounded-xl p-6 flex flex-col items-center justify-center bg-white/5 hover:bg-white/10 transition">
               {imageUrl ? (
                 <div className="flex items-center gap-4 animate-in fade-in">
                   <div className="relative w-16 h-16">
-                    {" "}
-                    {/* Conteneur pour gérer la taille */}
                     <Image
                       src={imageUrl}
                       alt="Profil"
-                      width={64} // Correspond à w-16 (16 * 4px)
-                      height={64} // Correspond à h-16
+                      width={64}
+                      height={64}
                       className="rounded-full border-2 border-barth-gold object-cover shadow-lg shadow-barth-gold/20"
                     />
                   </div>
@@ -365,6 +353,16 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
               )}
             </div>
           </div>
+
+          {/* BLOC ERREUR SERVEUR / DOUBLON */}
+          {serverError && (
+            <div className="bg-red-500/10 border border-red-500/50 rounded-xl p-4 flex items-start gap-3 animate-in fade-in zoom-in duration-300">
+              <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
+              <p className="text-red-500 text-sm leading-relaxed">
+                {serverError}
+              </p>
+            </div>
+          )}
 
           <button
             type="submit"
