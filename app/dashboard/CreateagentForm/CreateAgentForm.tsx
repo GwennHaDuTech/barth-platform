@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// ⚠️ Vérifie que le chemin est correct selon ton projet
+// ⚠️ Vérifie le chemin
 import { UploadButton } from "../../utils/uploadthing";
 import { useRouter } from "next/navigation";
 import {
@@ -15,12 +15,13 @@ import {
   FileText,
   Linkedin,
   Instagram,
+  CheckCircle2,
+  Plus, // Pour l'ajout de ville
 } from "lucide-react";
 import { createAgent, checkAgentDuplication } from "@/app/actions";
 import Image from "next/image";
 import { toast } from "sonner";
 
-// 👇 Import du CSS Module (Le fichier Pure CSS)
 import styles from "./CreateAgentForm.module.css";
 
 interface AgentFormData {
@@ -30,11 +31,22 @@ interface AgentFormData {
   phone: string;
   photo: string;
   city: string;
-  secondarySector: string;
+  zipCode: string;
+  secondarySector: string; // Ce champ sera rempli automatiquement par les tags
   instagram: string;
   linkedin: string;
   tiktok: string;
   bio: string;
+}
+
+interface GeoCity {
+  nom: string;
+  codesPostaux: string[];
+}
+
+interface SelectedCity {
+  name: string;
+  zip: string;
 }
 
 const cleanString = (str: string) => {
@@ -59,6 +71,7 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
 
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
+
   const [formData, setFormData] = useState<AgentFormData>({
     firstname: "",
     lastname: "",
@@ -66,17 +79,33 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
     phone: "",
     photo: "",
     city: "",
+    zipCode: "",
     secondarySector: "",
     instagram: "",
     linkedin: "",
     tiktok: "",
     bio: "",
   });
+
   const [imageUrl, setImageUrl] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingText, setLoadingText] = useState(loadingMessages[0]);
   const [isChecking, setIsChecking] = useState(false);
+
+  // --- GESTION VILLE PRINCIPALE ---
+  const [citySuggestions, setCitySuggestions] = useState<GeoCity[]>([]);
+  const [showZipInput, setShowZipInput] = useState(false);
+  const [isValidatedCity, setIsValidatedCity] = useState(false);
+
+  // --- GESTION VILLES SECONDAIRES (Tags) ---
+  const [secondaryQuery, setSecondaryQuery] = useState("");
+  const [secondarySuggestions, setSecondarySuggestions] = useState<GeoCity[]>(
+    []
+  );
+  const [secondaryCitiesList, setSecondaryCitiesList] = useState<
+    SelectedCity[]
+  >([]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -90,13 +119,100 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
     return () => clearInterval(interval);
   }, [isSubmitting]);
 
+  // FONCTION DE RECHERCHE API (Générique)
+  const searchApiGeo = async (query: string): Promise<GeoCity[]> => {
+    if (query.length < 3) return [];
+    try {
+      const res = await fetch(
+        `https://geo.api.gouv.fr/communes?nom=${query}&fields=nom,codesPostaux&boost=population&limit=5`
+      );
+      return await res.json();
+    } catch (error) {
+      console.error("Erreur API:", error);
+      return [];
+    }
+  };
+
+  // Gestion changement Input Ville Principale
+  const handleMainCityChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = e.target.value;
+    setFormData((prev) => ({ ...prev, city: value, zipCode: "" }));
+    setIsValidatedCity(false);
+
+    const results = await searchApiGeo(value);
+    setCitySuggestions(results);
+
+    // Si pas de résultat après 3 lettres, on propose le zip manuel
+    if (value.length >= 3 && results.length === 0) setShowZipInput(true);
+    else setShowZipInput(false);
+  };
+
+  // Gestion changement Input Ville Secondaire
+  const handleSecondaryCityChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = e.target.value;
+    setSecondaryQuery(value);
+    const results = await searchApiGeo(value);
+    setSecondarySuggestions(results);
+  };
+
+  // Sélection Ville Principale
+  const selectMainCity = (city: GeoCity) => {
+    setFormData((prev) => ({
+      ...prev,
+      city: city.nom,
+      zipCode: city.codesPostaux[0] || "",
+    }));
+    setCitySuggestions([]);
+    setIsValidatedCity(true);
+    setShowZipInput(false);
+  };
+
+  // Ajout Ville Secondaire (Tag)
+  const addSecondaryCity = (city: GeoCity) => {
+    const newCity: SelectedCity = {
+      name: city.nom,
+      zip: city.codesPostaux[0] || "",
+    };
+
+    // Éviter les doublons dans la liste
+    if (!secondaryCitiesList.some((c) => c.name === newCity.name)) {
+      const newList = [...secondaryCitiesList, newCity];
+      setSecondaryCitiesList(newList);
+      updateSecondarySectorString(newList);
+    }
+
+    setSecondaryQuery(""); // Reset input
+    setSecondarySuggestions([]); // Reset liste
+  };
+
+  // Suppression Ville Secondaire
+  const removeSecondaryCity = (indexToRemove: number) => {
+    const newList = secondaryCitiesList.filter(
+      (_, index) => index !== indexToRemove
+    );
+    setSecondaryCitiesList(newList);
+    updateSecondarySectorString(newList);
+  };
+
+  // Convertit la liste de tags en string pour la BDD
+  const updateSecondarySectorString = (list: SelectedCity[]) => {
+    // Ex: "Cesson (35510), Betton (35830)"
+    const formatted = list.map((c) => `${c.name} (${c.zip})`).join(", ");
+    setFormData((prev) => ({ ...prev, secondarySector: formatted }));
+  };
+
   const validateStep = (step: number) => {
     const d = formData;
     switch (step) {
       case 1:
         return !!(d.firstname && d.lastname && d.phone && imageUrl);
       case 2:
-        return !!(d.city && d.secondarySector);
+        // Ville principale OK + Au moins 1 ville secondaire
+        return !!(d.city && d.zipCode && secondaryCitiesList.length > 0);
       case 3:
         return true;
       case 4:
@@ -109,7 +225,8 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
   const handleNext = async () => {
     if (!validateStep(currentStep)) {
       toast.error("Champs manquants", {
-        description: "Merci de compléter l'étape actuelle.",
+        description:
+          "Vérifiez la ville principale et ajoutez au moins un secteur secondaire.",
       });
       return;
     }
@@ -238,7 +355,7 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
             onSubmit={handleSubmit}
             className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300"
           >
-            {/* ÉTAPE 1 */}
+            {/* ÉTAPE 1 : IDENTITÉ */}
             {currentStep === 1 && (
               <div className="space-y-6">
                 <div className="flex items-center gap-2 text-xl text-white mb-4">
@@ -342,38 +459,141 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
               </div>
             )}
 
-            {/* ÉTAPE 2 */}
+            {/* ÉTAPE 2 : SECTEURS */}
             {currentStep === 2 && (
               <div className="space-y-6">
                 <div className="flex items-center gap-2 text-xl text-white mb-4">
                   <MapPin className="text-barth-gold" /> <span>Secteurs</span>
                 </div>
-                <div>
-                  <label className={styles.label}>Secteur Principal</label>
+
+                {/* --- VILLE PRINCIPALE --- */}
+                <div className="relative">
+                  <label className={styles.label}>
+                    Secteur Principal (Ville)
+                  </label>
                   <input
                     name="city"
                     className={styles.input}
-                    onChange={handleChange}
+                    onChange={handleMainCityChange}
                     value={formData.city}
-                    placeholder="Ex: Rennes Centre"
+                    placeholder="Tapez une ville..."
+                    autoComplete="off"
                   />
-                  <p className={styles.helperText}>Ville principale.</p>
+                  {/* Suggestions Principales */}
+                  {citySuggestions.length > 0 && !isValidatedCity && (
+                    <div className={styles.suggestionsList}>
+                      {citySuggestions.map((city, index) => (
+                        <div
+                          key={index}
+                          className={styles.suggestionItem}
+                          onClick={() => selectMainCity(city)}
+                        >
+                          {city.nom}{" "}
+                          <span className="text-gray-500">
+                            ({city.codesPostaux[0]})
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {isValidatedCity && (
+                    <div className={styles.validatedBadge}>
+                      <CheckCircle2 size={16} /> {formData.city} (
+                      {formData.zipCode})
+                    </div>
+                  )}
+                  {showZipInput && !isValidatedCity && (
+                    <div className="mt-4 animate-in fade-in slide-in-from-top-2">
+                      <div className="flex items-center gap-2 text-yellow-500 text-xs mb-2">
+                        <AlertCircle size={14} />{" "}
+                        <span>Code postal manuel :</span>
+                      </div>
+                      <input
+                        name="zipCode"
+                        className={styles.input}
+                        onChange={handleChange}
+                        value={formData.zipCode}
+                        placeholder="Ex: 35760"
+                        maxLength={5}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className={styles.label}>Secteur Secondaire</label>
+
+                {/* --- SECTEURS SECONDAIRES (TAGS) --- */}
+                <div className="relative">
+                  <label className={styles.label}>
+                    Secteurs Secondaires (Ajouter plusieurs)
+                  </label>
+                  <div className="relative">
+                    <input
+                      value={secondaryQuery}
+                      onChange={handleSecondaryCityChange}
+                      className={styles.input}
+                      placeholder="Ajouter une ville (ex: Betton) puis valider..."
+                      autoComplete="off"
+                    />
+                    <div className="absolute right-4 top-3 text-gray-500 pointer-events-none">
+                      <Plus size={20} />
+                    </div>
+                  </div>
+
+                  {/* Suggestions Secondaires */}
+                  {secondarySuggestions.length > 0 && (
+                    <div
+                      className={styles.suggestionsList}
+                      style={{ zIndex: 60 }}
+                    >
+                      {secondarySuggestions.map((city, index) => (
+                        <div
+                          key={index}
+                          className={styles.suggestionItem}
+                          onClick={() => addSecondaryCity(city)}
+                        >
+                          {city.nom}{" "}
+                          <span className="text-gray-500">
+                            ({city.codesPostaux[0]})
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Liste des Tags (Chips) */}
+                  <div className={styles.chipsContainer}>
+                    {secondaryCitiesList.map((city, index) => (
+                      <div key={index} className={styles.chip}>
+                        <span>
+                          {city.name}{" "}
+                          <span className="opacity-70 text-[10px]">
+                            ({city.zip})
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeSecondaryCity(index)}
+                          className={styles.chipRemove}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    {secondaryCitiesList.length === 0 && (
+                      <p className="text-xs text-gray-500 italic mt-1">
+                        Aucun secteur secondaire ajouté.
+                      </p>
+                    )}
+                  </div>
                   <input
+                    type="hidden"
                     name="secondarySector"
-                    className={styles.input}
-                    onChange={handleChange}
                     value={formData.secondarySector}
-                    placeholder="Ex: Saint-Grégoire"
                   />
-                  <p className={styles.helperText}>Zone élargie.</p>
                 </div>
               </div>
             )}
 
-            {/* ÉTAPE 3 */}
+            {/* ÉTAPE 3 : RÉSEAUX */}
             {currentStep === 3 && (
               <div className="space-y-6">
                 <div className="flex items-center gap-2 text-xl text-white mb-4">
@@ -422,7 +642,7 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
               </div>
             )}
 
-            {/* ÉTAPE 4 */}
+            {/* ÉTAPE 4 : BIO */}
             {currentStep === 4 && (
               <div className="space-y-6">
                 <div className="flex items-center gap-2 text-xl text-white mb-4">
@@ -491,6 +711,7 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
           ) : (
             <div></div>
           )}
+
           {currentStep < totalSteps ? (
             <button
               type="button"
