@@ -3,6 +3,42 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+export async function updateAgent(id: string, formData: FormData) {
+  try {
+    const rawData = Object.fromEntries(formData.entries());
+
+    // On prépare les données à mettre à jour
+    // Note: On ne met PAS à jour le SLUG pour ne pas casser les liens existants
+    await prisma.agent.update({
+      where: { id },
+      data: {
+        firstname: rawData.firstname as string,
+        lastname: rawData.lastname as string,
+        email: rawData.email as string, // On autorise le changement d'email si besoin
+        phone: rawData.phone as string,
+        photo: rawData.photo as string,
+
+        city: rawData.city as string,
+        zipCode: rawData.zipCode as string,
+        cityPhoto: rawData.cityPhotoUrl as string, // Attention au nom du champ DB vs Form
+        secondarySector: rawData.secondarySector as string,
+
+        instagram: rawData.instagram as string,
+        linkedin: rawData.linkedin as string,
+        tiktok: rawData.tiktok as string,
+        bio: rawData.bio as string,
+      },
+    });
+
+    revalidatePath("/dashboard/users"); // Rafraîchit le tableau
+    revalidatePath(`/agent/${rawData.slug}`); // Rafraîchit le site public
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur Update:", error);
+    return { success: false, error: "Impossible de mettre à jour l'agent." };
+  }
+}
+
 export async function checkAgentDuplication(
   firstname: string,
   lastname: string

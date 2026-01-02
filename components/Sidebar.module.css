@@ -1,0 +1,231 @@
+/* Sidebar.module.css */
+
+.sidebarContainer {
+  --barth-gold: #d4af37;
+  --barth-dark: #1a1a1a;
+  --glass-bg: rgba(
+    20,
+    20,
+    20,
+    0.4
+  ); /* Fond un peu plus sombre pour le contraste */
+  --glass-bg: rgba(30, 32, 35, 0.65);
+  --glass-border: rgba(212, 175, 55, 0.15);
+  --text-grey: #a1a1aa;
+  --sidebar-collapsed-width: 5rem;
+  --sidebar-expanded-width: 13rem; /* Largeur une fois ouvert */
+}
+
+.sidebar {
+  position: fixed;
+  top: 50%;
+  left: 24px;
+  transform: translateY(-50%);
+
+  width: var(--sidebar-collapsed-width);
+  height: fit-content;
+  min-height: 400px;
+
+  /* --- LE NOUVEL EFFET GLASS --- */
+  background-color: var(--glass-bg);
+
+  /* 1. Flou très élevé + Saturation (le secret du "beau" flou) */
+  backdrop-filter: blur(50px) saturate(180%);
+  -webkit-backdrop-filter: blur(50px) saturate(180%); /* Pour Safari/Mac */
+
+  /* 2. Bordure fine et précise */
+  border: 1px solid var(--glass-border);
+
+  /* 3. Reflet interne pour donner de l'épaisseur au verre */
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4),
+    /* L'ombre portée derrière */ inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    /* Petit reflet haut */ inset 0 0 20px rgba(255, 255, 255, 0.02); /* Lueur interne subtile */
+
+  border-radius: 24px;
+
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1rem;
+  gap: 1.5rem;
+  overflow: hidden;
+  z-index: 50;
+
+  transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* --- Au survol de la Sidebar --- */
+.sidebar:hover {
+  width: var(--sidebar-expanded-width);
+  align-items: stretch; /* Étire les éléments pour qu'ils prennent la largeur */
+}
+
+/* --- Bouton Déconnexion (Header) --- */
+.header {
+  display: flex;
+  align-items: center;
+  /* État fermé : on force le centrage absolu */
+  justify-content: center;
+
+  position: relative;
+  height: 4rem; /* Hauteur fixe */
+  width: 100%;
+
+  /* On retire tout padding quand c'est fermé pour éviter le décalage */
+  padding: 0;
+
+  transition: all 0.3s ease;
+  overflow: hidden; /* Coupe ce qui dépasse */
+}
+
+.logoutBtn {
+  width: 3rem;
+  height: 3rem;
+  min-width: 3rem; /* Crucial : empêche l'écrasement */
+  min-height: 3rem;
+
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: var(--barth-dark);
+  background: linear-gradient(135deg, var(--barth-gold), #bfa15f);
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+  border: none;
+  cursor: pointer;
+
+  z-index: 10; /* S'assure qu'il est au-dessus */
+  flex-shrink: 0; /* Crucial : interdit au bouton de rétrécir */
+
+  transition: transform 0.2s;
+}
+
+.headerText {
+  /* État fermé : Largeur ZÉRO strict */
+  width: 0;
+  opacity: 0;
+  margin-left: 0;
+  overflow: hidden;
+  white-space: nowrap;
+
+  transition: all 0.3s ease;
+
+  /* Style du texte */
+  color: white;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.sidebar:hover .header {
+  justify-content: flex-start; /* On aligne à gauche */
+  padding-left: 12px; /* On ajoute un peu d'espace à gauche */
+}
+.sidebar:hover .headerText {
+  width: auto;
+  opacity: 1;
+  margin-left: 1.5rem;
+  transition-delay: 0.1s;
+}
+
+/* --- Séparateur --- */
+.separator {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+}
+
+/* --- Navigation --- */
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  /* CRUCIAL : On centre le contenu par défaut (état fermé) */
+  justify-content: center;
+  padding: 0.75rem 0; /* On retire le padding horizontal pour garantir le centrage parfait */
+  width: 100%; /* S'assure de prendre toute la largeur */
+
+  border-radius: 12px;
+  color: var(--text-grey);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  height: 3rem; /* Hauteur fixe pour éviter les sauts */
+}
+
+/* Centrage de l'icône quand fermé */
+.navLink {
+  justify-content: center;
+}
+
+/* Alignement gauche quand ouvert */
+.sidebar:hover .navLink {
+  justify-content: flex-start;
+  padding-left: 1.5rem; /* On remet un peu d'espace à gauche */
+}
+
+.navLink:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+/* --- État Actif (Page courante) --- */
+.active {
+  background-color: rgba(212, 175, 55, 0.15); /* Fond doré léger */
+  color: var(--barth-gold);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.05);
+}
+
+/* Icône fixe */
+.navIcon {
+  min-width: 24px; /* Fixe la taille pour que l'icône ne bouge pas */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Texte des liens */
+.linkText {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+
+  /* Transition fluide */
+  transition: opacity 0.2s ease, width 0.3s ease, margin-left 0.3s ease;
+
+  /* Pas de marge pour ne pas pousser l'icône */
+  margin-left: 0;
+  font-size: 0.95rem;
+}
+
+.sidebar:hover .linkText {
+  width: auto;
+  opacity: 1;
+  margin-left: 1.5rem;
+  transition-delay: 0.1s;
+}
+
+/* Footer */
+.footerLogo {
+  margin-top: auto;
+  text-align: center;
+  opacity: 0.5;
+  transition: opacity 0.3s;
+}
+.sidebar:hover .footerLogo {
+  opacity: 1;
+}
