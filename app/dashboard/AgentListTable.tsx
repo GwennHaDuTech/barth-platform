@@ -2,20 +2,29 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { deleteAgent } from "@/app/actions";
-import { Loader2, AlertTriangle, Trash2 } from "lucide-react";
+import {
+  Loader2,
+  AlertTriangle,
+  Trash2,
+  ExternalLink,
+  Edit,
+} from "lucide-react";
 import { toast } from "sonner";
 
-// 1. On définit ce qu'est un Agent pour TypeScript
+// 1. Interface correspondant EXACTEMENT à ton Prisma Schema actuel
 interface Agent {
   id: string;
-  name: string;
-  subdomain: string;
+  firstname: string;
+  lastname: string;
   email: string;
-  // Ajoute d'autres champs si tu en as besoin ici
+  photo: string;
+  slug: string; // C'est lui la clé pour le lien !
+  city: string;
+  createdAt: Date;
 }
 
-// 2. On met à jour l'interface des Props sans utiliser "any"
 interface AgentListProps {
   initialAgents: Agent[];
   domain: string;
@@ -29,11 +38,9 @@ export default function AgentListTable({
   protocol,
   isProduction,
 }: AgentListProps) {
-  // 3. On précise que selectedAgent peut être un Agent ou null
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // 4. On type l'argument ici aussi
   const handleDeleteClick = (agent: Agent) => setSelectedAgent(agent);
 
   const confirmDelete = async () => {
@@ -43,20 +50,27 @@ export default function AgentListTable({
       await deleteAgent(selectedAgent.id);
       setSelectedAgent(null);
       toast.success("Site supprimé", {
-        description: `Le site de ${selectedAgent.name} a été retiré.`,
-        icon: <Trash2 className="text-red-500" size={18} />, // Icône personnalisée
-        style: {
-          border: "1px solid rgba(239, 68, 68, 0.2)", // Bordure rouge très fine pour la suppression
-        },
+        description: `Le site de ${selectedAgent.firstname} a été retiré.`,
+        icon: <Trash2 className="text-red-500" size={18} />,
+        style: { border: "1px solid rgba(239, 68, 68, 0.2)" },
       });
+      // Optionnel : recharger la page pour rafraîchir la liste
+      window.location.reload();
     } catch (error) {
-      // 👇 NOTIFICATION D'ERREUR
       toast.error("Erreur", {
-        description: "Impossible de supprimer l'agent pour le moment.",
+        description: "Impossible de supprimer l'agent.",
       });
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
   };
 
   return (
@@ -64,43 +78,80 @@ export default function AgentListTable({
       <table className="w-full text-left text-sm text-gray-400">
         <thead className="text-xs uppercase border-b border-white/10 text-barth-gold">
           <tr>
-            <th className="px-4 py-3 font-medium">site agent</th>
-            <th className="px-4 py-3 font-medium text-center">visites</th>
-            <th className="px-4 py-3 font-medium text-right">actions</th>
+            <th className="px-4 py-3 font-medium">Agent</th>
+            <th className="px-4 py-3 font-medium">Ville</th>
+            <th className="px-4 py-3 font-medium">Créé le</th>
+            <th className="px-4 py-3 font-medium text-right">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-white/5">
           {initialAgents.map((agent) => (
-            <tr key={agent.id} className="hover:bg-white/5 transition">
-              <td className="px-4 py-4 font-medium text-white flex flex-col">
-                {agent.name}
-                <Link
-                  href={
-                    isProduction
-                      ? `/sites/${agent.subdomain}`
-                      : `${protocol}://${agent.subdomain}.${domain}`
-                  }
-                  target="_blank"
-                  className="text-xs text-barth-gold/80 hover:text-barth-gold truncate w-48"
-                >
-                  {agent.subdomain}.{domain} ↗
-                </Link>
+            <tr key={agent.id} className="hover:bg-white/5 transition group">
+              {/* COLONNE AGENT (Photo + Noms) */}
+              <td className="px-4 py-4 font-medium text-white flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full overflow-hidden relative border border-white/10 shrink-0">
+                  {agent.photo ? (
+                    <Image
+                      src={agent.photo}
+                      alt={agent.lastname}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-barth-gold/20 flex items-center justify-center text-barth-gold font-bold">
+                      {agent.firstname[0]}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <span>
+                    {agent.firstname} {agent.lastname}
+                  </span>
+                  <span className="text-xs text-gray-500 font-normal">
+                    {agent.email}
+                  </span>
+                </div>
               </td>
-              <td className="px-4 py-4 text-center font-bold text-white">0</td>
+
+              {/* COLONNE VILLE */}
+              <td className="px-4 py-4 text-gray-300">{agent.city}</td>
+
+              {/* COLONNE DATE */}
+              <td className="px-4 py-4 text-gray-500">
+                {formatDate(agent.createdAt)}
+              </td>
+
+              {/* COLONNE ACTIONS */}
               <td className="px-4 py-4 text-right">
-                <button
-                  onClick={() => handleDeleteClick(agent)}
-                  className="text-xs px-3 py-1 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 transition"
-                >
-                  Supprimer
-                </button>
+                <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                  {/* --- LE LIEN MAGIQUE VERS LA PAGE PUBLIQUE --- */}
+                  <Link
+                    href={`/agent/${agent.slug}`}
+                    target="_blank"
+                    className="p-2 rounded-full hover:bg-barth-gold/20 text-barth-gold transition"
+                    title="Voir le site en ligne"
+                  >
+                    <ExternalLink size={16} />
+                  </Link>
+
+                  <button className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition">
+                    <Edit size={16} />
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteClick(agent)}
+                    className="p-2 rounded-full hover:bg-red-500/20 text-gray-400 hover:text-red-500 transition"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {/* --- POPUP DE CONFIRMATION --- */}
+      {/* --- POPUP DE CONFIRMATION (Tu l'avais déjà, je l'ai gardé) --- */}
       {selectedAgent && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#0f0f0f] border border-white/10 p-8 rounded-3xl max-w-md w-full shadow-2xl">
@@ -114,7 +165,7 @@ export default function AgentListTable({
               <p className="text-gray-400 mb-8 font-light">
                 Voulez-vous vraiment supprimer le site de{" "}
                 <span className="text-white font-semibold">
-                  {selectedAgent.name}
+                  {selectedAgent.firstname} {selectedAgent.lastname}
                 </span>{" "}
                 ? Cette action est irréversible.
               </p>

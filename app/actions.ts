@@ -3,81 +3,122 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function createAgent(formData: FormData) {
-  // 1. Récupération des champs séparés
-  const firstname = formData.get("firstname") as string;
-  const lastname = formData.get("lastname") as string;
-  const email = formData.get("email") as string;
-  const phone = formData.get("phone") as string;
-  const city = formData.get("city") as string;
-  const bio = formData.get("bio") as string;
-  const photo = formData.get("photo") as string;
+export async function updateAgent(id: string, formData: FormData) {
+  try {
+    const rawData = Object.fromEntries(formData.entries());
 
-  // 2. Validation Serveur (Sécurité doublée)
-  if (!firstname || !lastname || !email) {
-    throw new Error("Les champs Prénom, Nom et Email sont obligatoires.");
-  }
+    // On prépare les données à mettre à jour
+    // Note: On ne met PAS à jour le SLUG pour ne pas casser les liens existants
+    await prisma.agent.update({
+      where: { id },
+      data: {
+        firstname: rawData.firstname as string,
+        lastname: rawData.lastname as string,
+        email: rawData.email as string, // On autorise le changement d'email si besoin
+        phone: rawData.phone as string,
+        photo: rawData.photo as string,
 
-  // 3. Génération du sous-domaine unique
-  // On nettoie les accents et caractères spéciaux
-  const cleanString = (str: string) =>
-    str
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "");
+        city: rawData.city as string,
+        zipCode: rawData.zipCode as string,
+        cityPhoto: rawData.cityPhotoUrl as string, // Attention au nom du champ DB vs Form
+        secondarySector: rawData.secondarySector as string,
 
-  const baseSlug = `${cleanString(firstname)}.${cleanString(lastname)}`;
-  let uniqueSubdomain = baseSlug;
-  let counter = 1;
-
-  // Boucle pour trouver un sous-domaine libre
-  while (true) {
-    const existing = await prisma.agent.findUnique({
-      where: { subdomain: uniqueSubdomain },
+        instagram: rawData.instagram as string,
+        linkedin: rawData.linkedin as string,
+        tiktok: rawData.tiktok as string,
+        bio: rawData.bio as string,
+      },
     });
 
-    if (!existing) break; // C'est libre !
-
-    // Sinon on incrémente (jean.dupont1, jean.dupont2...)
-    uniqueSubdomain = `${baseSlug}${counter}`;
-    counter++;
+    revalidatePath("/dashboard/users"); // Rafraîchit le tableau
+    revalidatePath(`/agent/${rawData.slug}`); // Rafraîchit le site public
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur Update:", error);
+    return { success: false, error: "Impossible de mettre à jour l'agent." };
   }
+}
 
-  // 4. Création en base
+export async function checkAgentDuplication(
+  firstname: string,
+  lastname: string
+) {
   try {
+    const existing = await prisma.agent.findFirst({
+      where: {
+        firstname: { equals: firstname, mode: "insensitive" }, // Insensitive = ignore majuscules
+        lastname: { equals: lastname, mode: "insensitive" },
+      },
+    });
+    return !!existing; // Renvoie true si trouvé (donc doublon), false si c'est libre
+  } catch (error) {
+    console.error("Erreur vérification doublon:", error);
+    return false; // Dans le doute, on laisse passer (la sécurité finale bloquera)
+  }
+}
+
+export async function createAgent(formData: FormData) {
+  try {
+    // ... tes vérifications d'authentification existantes ...
+
+    const firstname = formData.get("firstname") as string;
+    const lastname = formData.get("lastname") as string;
+    const email = formData.get("email") as string;
+    const phone = formData.get("phone") as string;
+    const photo = formData.get("photo") as string;
+    const city = formData.get("city") as string;
+
+    // 👇 RÉCUPÉRATION DES NOUVEAUX CHAMPS
+    const zipCode = formData.get("zipCode") as string;
+    const cityPhoto = formData.get("cityPhotoUrl") as string; // Attention au nom "cityPhotoUrl" envoyé par le front
+    // -----------------------------------
+
+    const secondarySector = formData.get("secondarySector") as string;
+    const instagram = formData.get("instagram") as string;
+    const linkedin = formData.get("linkedin") as string;
+    const tiktok = formData.get("tiktok") as string;
+    const bio = formData.get("bio") as string;
+
+    // Génération du slug (ex: paul-durand)
+    const slug = `${firstname.toLowerCase()}-${lastname.toLowerCase()}`
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "-");
+
+    // Création en base
     await prisma.agent.create({
       data: {
         firstname,
         lastname,
-        name: `${firstname} ${lastname}`, // On reconstitue le nom complet pour l'affichage
-        subdomain: uniqueSubdomain,
         email,
         phone,
-        city,
-        bio,
         photo,
+        city,
+
+        // 👇 ENREGISTREMENT
+        zipCode: zipCode || "",
+        cityPhoto: cityPhoto || "",
+        // ----------------
+
+        secondarySector,
+        instagram,
+        linkedin,
+        tiktok,
+        bio,
+        slug,
       },
     });
 
-    revalidatePath("/dashboard");
     return { success: true };
-  } catch (e) {
-    // 👇 LE CODE MAGIQUE : On dit au Sheriff d'ignorer la ligne suivante
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const error = e as any;
-
-    console.error("Erreur création agent:", error);
-
-    // Gestion de l'erreur "Email ou Sous-domaine déjà pris"
-    if (error.code === "P2002") {
-      throw new Error("Cet email est déjà utilisé par un autre agent.");
-    }
-
-    throw new Error("Erreur technique lors de la création.");
+  } catch (error) {
+    console.error("Erreur createAgent:", error);
+    return { success: false, error: "Impossible de créer l'agent." };
   }
 }
+
+// ... garde ta fonction deleteAgent en dessous, elle ne change pas
 export async function deleteAgent(agentId: string) {
+  // ... ton code existant ...
   try {
     await prisma.agent.delete({
       where: { id: agentId },
@@ -87,6 +128,6 @@ export async function deleteAgent(agentId: string) {
     return { success: true };
   } catch (error) {
     console.error("Erreur suppression:", error);
-    throw new Error("Impossible de supprimer cet agent.");
+    return { success: false, error: "Impossible de supprimer cet agent." };
   }
 }

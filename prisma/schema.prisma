@@ -8,19 +8,24 @@ datasource db {
 }
 
 model Agent {
-  id        String   @id @default(cuid())
+id        String   @id @default(cuid())
   firstname String
   lastname  String
-  subdomain String   @unique
-  name      String
   email     String   @unique
-  photo     String?
-  bio       String?
-  phone     String?
-  city      String?
-  listings  Listing[]
+  phone     String
+  photo     String
+  city      String
+  zipCode   String?  // Ajouté (String car un code postal peut commencer par 0)
+  cityPhoto String?  // Ajouté (URL de l'image de couverture)
+  secondarySector String?
+  instagram String?
+  linkedin  String?
+  tiktok    String?
+  bio       String? @db.Text
+  slug      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+    listings  Listing[]
 }
 
 model Listing {

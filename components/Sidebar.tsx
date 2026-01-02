@@ -1,56 +1,125 @@
 // components/Sidebar.tsx
+"use client";
+
 import Link from "next/link";
-import { Home, Users, Calendar, Settings } from "lucide-react"; // Installe lucide-react si besoin: npm i lucide-react
+import { usePathname } from "next/navigation";
+import { Home, Users, Building2, Settings, LogOut } from "lucide-react";
+import { useClerk, useUser } from "@clerk/nextjs"; // Imports Clerk
+import styles from "./Sidebar.module.css";
 
 const Sidebar = () => {
+  const pathname = usePathname();
+  // Récupère les infos de l'utilisateur connecté et la fonction de déconnexion
+  const { user } = useUser();
+  const { signOut } = useClerk();
+
+  const handleLogout = () => {
+    signOut({ redirectUrl: "/" }); // Redirige vers l'accueil après déconnexion
+  };
+
+  const isActive = (path: string) => {
+    if (path === "/dashboard" && pathname === "/dashboard") return true;
+    if (path !== "/dashboard" && pathname?.startsWith(path)) return true;
+    return false;
+  };
+
   return (
-    <aside className="w-24 m-4 rounded-3xl bg-white/5 backdrop-blur-md border border-barth-gold/10 flex flex-col items-center py-8 gap-8">
-      {/* Logo P (Placeholder pour le profil ou logo) */}
-      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-barth-gold to-barth-dark-soft flex items-center justify-center font-bold text-barth-dark">
-        P
-      </div>
-
-      {/* Navigation Icons */}
-      <nav className="flex flex-col gap-6 mt-8">
-        <Link
-          href="/dashboard"
-          className="p-3 rounded-xl bg-barth-gold/20 text-barth-gold"
-        >
-          <Home size={24} />
-        </Link>
-        <Link
-          href="#"
-          className="p-3 rounded-xl text-gray-400 hover:text-barth-gold hover:bg-white/5 transition"
-        >
-          <Users size={24} />
-        </Link>
-        <Link
-          href="#"
-          className="p-3 rounded-xl text-gray-400 hover:text-barth-gold hover:bg-white/5 transition"
-        >
-          <Calendar size={24} />
-        </Link>
-        <div className="mt-auto pt-8">
-          <Link
-            href="#"
-            className="p-3 rounded-xl text-gray-400 hover:text-barth-gold hover:bg-white/5 transition"
+    <div className={styles.sidebarContainer}>
+      <aside className={styles.sidebar}>
+        {/* --- HEADER : LOGOUT + USER INFO --- */}
+        <div className={styles.header}>
+          <button
+            onClick={handleLogout}
+            className={styles.logoutBtn}
+            title="Se déconnecter"
           >
-            <Settings size={24} />
-          </Link>
-        </div>
-      </nav>
+            {/* Si l'utilisateur a une image (avatar Google/Clerk), on l'affiche */}
+            {user?.imageUrl ? (
+              <img
+                src={user.imageUrl}
+                alt="Profile"
+                className="w-full h-full rounded-full object-cover"
+              />
+            ) : (
+              // Sinon on affiche les initiales
+              <span className={styles.initials}>
+                {user?.firstName ? user.firstName[0].toUpperCase() : "A"}
+              </span>
+            )}
+          </button>
 
-      {/* Logo Barth en bas */}
-      <div className="mt-auto text-center">
-        <div className="text-[0.6rem] uppercase tracking-widest text-gray-400">
-          Cabinet Immobilier
+          <div className={styles.headerText}>
+            {/* Affiche le vrai prénom */}
+            <p className="text-sm font-bold text-white leading-none">
+              {user?.firstName || "Admin"}
+            </p>
+            <p className="text-xs text-barth-gold leading-none mt-1">
+              Déconnexion
+            </p>
+          </div>
         </div>
-        <div className="text-xl font-bold text-barth-gold tracking-wider">
-          BARTH
+
+        <div className={styles.separator} />
+
+        {/* --- NAVIGATION (Reste identique) --- */}
+        <nav className={styles.nav}>
+          <Link
+            href="/dashboard"
+            className={`${styles.navLink} ${
+              isActive("/dashboard") ? styles.active : ""
+            }`}
+          >
+            <span className={styles.navIcon}>
+              <Home size={22} />
+            </span>
+            <span className={styles.linkText}>Accueil</span>
+          </Link>
+
+          <Link
+            href="/dashboard/users"
+            className={`${styles.navLink} ${
+              isActive("/dashboard/users") ? styles.active : ""
+            }`}
+          >
+            <span className={styles.navIcon}>
+              <Users size={22} />
+            </span>
+            <span className={styles.linkText}>Agents</span>
+          </Link>
+
+          <Link
+            href="/dashboard/agencies"
+            className={`${styles.navLink} ${
+              isActive("/dashboard/agencies") ? styles.active : ""
+            }`}
+          >
+            {/* Note: Building2 n'était pas importé dans ton snippet précédent, assure-toi de l'avoir */}
+            <span className={styles.navIcon}>
+              <Building2 size={22} />
+            </span>
+            <span className={styles.linkText}>Agences</span>
+          </Link>
+
+          <Link
+            href="/dashboard/settings"
+            className={`${styles.navLink} ${
+              isActive("/dashboard/settings") ? styles.active : ""
+            }`}
+          >
+            <span className={styles.navIcon}>
+              <Settings size={22} />
+            </span>
+            <span className={styles.linkText}>Réglages</span>
+          </Link>
+        </nav>
+
+        {/* --- FOOTER --- */}
+        <div className={styles.footerLogo}>
+          <div className="text-[0.5rem] uppercase tracking-widest text-barth-gold">
+            BTH
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </div>
   );
 };
-
-export default Sidebar;
