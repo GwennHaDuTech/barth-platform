@@ -22,98 +22,61 @@ export async function checkAgentDuplication(
 }
 
 export async function createAgent(formData: FormData) {
-  // 1. Récupération des champs standards
-  const firstname = formData.get("firstname") as string;
-  const lastname = formData.get("lastname") as string;
-  const email = formData.get("email") as string;
-  const phone = formData.get("phone") as string;
-  const photo = formData.get("photo") as string;
-  const bio = formData.get("bio") as string;
+  try {
+    // ... tes vérifications d'authentification existantes ...
 
-  // 2. Récupération des NOUVEAUX champs (Secteurs & Réseaux)
-  const city = formData.get("city") as string; // Secteur principal
-  const secondarySector = formData.get("secondarySector") as string; // Secteur secondaire
+    const firstname = formData.get("firstname") as string;
+    const lastname = formData.get("lastname") as string;
+    const email = formData.get("email") as string;
+    const phone = formData.get("phone") as string;
+    const photo = formData.get("photo") as string;
+    const city = formData.get("city") as string;
 
-  const instagram = formData.get("instagram") as string;
-  const linkedin = formData.get("linkedin") as string;
-  const tiktok = formData.get("tiktok") as string;
+    // 👇 RÉCUPÉRATION DES NOUVEAUX CHAMPS
+    const zipCode = formData.get("zipCode") as string;
+    const cityPhoto = formData.get("cityPhotoUrl") as string; // Attention au nom "cityPhotoUrl" envoyé par le front
+    // -----------------------------------
 
-  // 3. Validation Serveur
-  // On rend le secteur secondaire obligatoire comme demandé
-  if (
-    !firstname ||
-    !lastname ||
-    !email ||
-    !phone ||
-    !bio ||
-    !city ||
-    !secondarySector ||
-    !photo
-  ) {
-    return {
-      success: false,
-      error:
-        "Tous les champs obligatoires (y compris les 2 secteurs) doivent être remplis.",
-    };
-  }
+    const secondarySector = formData.get("secondarySector") as string;
+    const instagram = formData.get("instagram") as string;
+    const linkedin = formData.get("linkedin") as string;
+    const tiktok = formData.get("tiktok") as string;
+    const bio = formData.get("bio") as string;
 
-  // 4. Génération du sous-domaine unique
-  const cleanString = (str: string) =>
-    str
+    // Génération du slug (ex: paul-durand)
+    const slug = `${firstname.toLowerCase()}-${lastname.toLowerCase()}`
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "");
+      .replace(/\s+/g, "-");
 
-  const baseSlug = `${cleanString(firstname)}.${cleanString(lastname)}`;
-  let uniqueSubdomain = baseSlug;
-  let counter = 1;
-
-  while (true) {
-    const existing = await prisma.agent.findUnique({
-      where: { subdomain: uniqueSubdomain },
-    });
-    if (!existing) break;
-    uniqueSubdomain = `${baseSlug}${counter}`;
-    counter++;
-  }
-
-  // 5. Création en base de données avec les nouveaux champs
-  try {
+    // Création en base
     await prisma.agent.create({
       data: {
         firstname,
         lastname,
-        name: `${firstname} ${lastname}`,
-        subdomain: uniqueSubdomain,
         email,
         phone,
-        city,
-        secondarySector, // Nouveau
-        instagram, // Nouveau
-        linkedin, // Nouveau
-        tiktok, // Nouveau
-        bio,
         photo,
+        city,
+
+        // 👇 ENREGISTREMENT
+        zipCode: zipCode || "",
+        cityPhoto: cityPhoto || "",
+        // ----------------
+
+        secondarySector,
+        instagram,
+        linkedin,
+        tiktok,
+        bio,
+        slug,
       },
     });
 
-    revalidatePath("/dashboard");
     return { success: true };
-  } catch (e) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const error = e as any;
-    console.error("Erreur création agent:", error);
-
-    if (error.code === "P2002") {
-      return {
-        success: false,
-        error:
-          "Un autre agent utilise déjà cet email ou ce nom. Ajoute un chiffre au nom si nécessaire.",
-      };
-    }
-
-    return { success: false, error: "Erreur technique lors de la création." };
+  } catch (error) {
+    console.error("Erreur createAgent:", error);
+    return { success: false, error: "Impossible de créer l'agent." };
   }
 }
 

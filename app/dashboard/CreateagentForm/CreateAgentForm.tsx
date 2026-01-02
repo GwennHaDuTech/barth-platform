@@ -17,6 +17,7 @@ import {
   Instagram,
   CheckCircle2,
   Plus, // Pour l'ajout de ville
+  ImageIcon, // Icône pour la nouvelle section photo
 } from "lucide-react";
 import { createAgent, checkAgentDuplication } from "@/app/actions";
 import Image from "next/image";
@@ -29,10 +30,11 @@ interface AgentFormData {
   lastname: string;
   email: string;
   phone: string;
-  photo: string;
+  photo: string; // Photo de profil (Step 1)
   city: string;
   zipCode: string;
-  secondarySector: string; // Ce champ sera rempli automatiquement par les tags
+  cityPhotoUrl: string; // NOUVEAU : Photo de la ville (Step 2)
+  secondarySector: string;
   instagram: string;
   linkedin: string;
   tiktok: string;
@@ -80,6 +82,7 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
     photo: "",
     city: "",
     zipCode: "",
+    cityPhotoUrl: "", // Init vide
     secondarySector: "",
     instagram: "",
     linkedin: "",
@@ -87,7 +90,11 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
     bio: "",
   });
 
+  // État pour la photo de profil (Step 1)
   const [imageUrl, setImageUrl] = useState("");
+  // NOUVEAU : État pour la photo de la ville (Step 2)
+  const [cityImageUrl, setCityImageUrl] = useState("");
+
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingText, setLoadingText] = useState(loadingMessages[0]);
@@ -211,8 +218,13 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
       case 1:
         return !!(d.firstname && d.lastname && d.phone && imageUrl);
       case 2:
-        // Ville principale OK + Au moins 1 ville secondaire
-        return !!(d.city && d.zipCode && secondaryCitiesList.length > 0);
+        // Ville principale + Zip + Au moins 1 secondaire + PHOTO VILLE (Nouveau)
+        return !!(
+          d.city &&
+          d.zipCode &&
+          secondaryCitiesList.length > 0 &&
+          cityImageUrl
+        );
       case 3:
         return true;
       case 4:
@@ -224,9 +236,13 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
 
   const handleNext = async () => {
     if (!validateStep(currentStep)) {
+      // Message d'erreur générique, peut être affiné selon l'étape
+      let errorMsg = "Merci de compléter l'étape actuelle.";
+      if (currentStep === 2 && !cityImageUrl)
+        errorMsg = "N'oubliez pas la photo de couverture de la ville.";
+
       toast.error("Champs manquants", {
-        description:
-          "Vérifiez la ville principale et ajoutez au moins un secteur secondaire.",
+        description: errorMsg,
       });
       return;
     }
@@ -280,9 +296,14 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
     try {
       const dataToSend = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
-        if (key !== "photo") dataToSend.append(key, value);
+        // On n'ajoute pas les champs "photo" et "cityPhotoUrl" ici car ils sont vides dans formData
+        if (key !== "photo" && key !== "cityPhotoUrl") {
+          dataToSend.append(key, value);
+        }
       });
-      dataToSend.append("photo", imageUrl);
+      // On ajoute les vraies URLs des images uploadées
+      dataToSend.append("photo", imageUrl); // Photo profil
+      dataToSend.append("cityPhotoUrl", cityImageUrl); // NOUVEAU : Photo ville
 
       const result = await createAgent(dataToSend);
 
@@ -459,11 +480,12 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
               </div>
             )}
 
-            {/* ÉTAPE 2 : SECTEURS */}
+            {/* ÉTAPE 2 : SECTEURS & PHOTO VILLE */}
             {currentStep === 2 && (
               <div className="space-y-6">
                 <div className="flex items-center gap-2 text-xl text-white mb-4">
-                  <MapPin className="text-barth-gold" /> <span>Secteurs</span>
+                  <MapPin className="text-barth-gold" />{" "}
+                  <span>Secteurs & Image</span>
                 </div>
 
                 {/* --- VILLE PRINCIPALE --- */}
@@ -520,8 +542,57 @@ export default function CreateAgentForm({ onClose }: { onClose: () => void }) {
                   )}
                 </div>
 
+                {/* --- NOUVEAU : UPLOAD PHOTO VILLE --- */}
+                <div className="mt-6 pt-6 border-t border-white/10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <ImageIcon className="text-barth-gold" size={18} />
+                    <label className={styles.label} style={{ marginBottom: 0 }}>
+                      Photo de couverture (Ville Principale)
+                    </label>
+                  </div>
+
+                  <div className={styles.uploadBox}>
+                    {cityImageUrl ? (
+                      // Prévisualisation en mode "Bannière" large
+                      <div className="relative w-full h-32 rounded-lg overflow-hidden group">
+                        <Image
+                          src={cityImageUrl}
+                          alt="Ville"
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-black/30 transition-opacity opacity-0 group-hover:opacity-100"></div>
+                        <button
+                          type="button"
+                          onClick={() => setCityImageUrl("")}
+                          className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full text-white hover:bg-red-500/80 transition z-10"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <UploadButton
+                        endpoint="imageUploader"
+                        onClientUploadComplete={(res) =>
+                          res && res[0] && setCityImageUrl(res[0].url)
+                        }
+                        onUploadError={(e) => alert(e.message)}
+                        appearance={{
+                          button:
+                            "bg-barth-gold text-barth-dark text-sm px-4 py-2 rounded-full",
+                        }}
+                      />
+                    )}
+                  </div>
+                  <p className={styles.helperText}>
+                    {` Cette image servira de grande bannière sur le site de
+                    l'agent. Choisissez une photo de bonne qualité
+                    représentative du secteur.`}
+                  </p>
+                </div>
+
                 {/* --- SECTEURS SECONDAIRES (TAGS) --- */}
-                <div className="relative">
+                <div className="relative mt-6">
                   <label className={styles.label}>
                     Secteurs Secondaires (Ajouter plusieurs)
                   </label>
