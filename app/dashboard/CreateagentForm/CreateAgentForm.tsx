@@ -99,14 +99,27 @@ interface SelectedCity {
   name: string;
   zip: string;
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> dev
 interface AgentData {
   id: string;
   firstname: string;
   lastname: string;
   email: string;
+<<<<<<< HEAD
   phone: string;
   photo: string;
   city: string;
+=======
+
+  // ICI : On ajoute "| null" pour dire "ça peut être vide"
+  phone: string | null;
+  photo: string | null;
+  city: string | null;
+
+>>>>>>> dev
   zipCode?: string | null;
   cityPhoto?: string | null;
   secondarySector?: string | null;
@@ -115,10 +128,17 @@ interface AgentData {
   tiktok?: string | null;
   bio?: string | null;
 }
+<<<<<<< HEAD
 interface Props {
   onClose: () => void;
   // On remplace 'any' par notre nouvelle interface précise
   agentToEdit?: AgentData;
+=======
+
+interface Props {
+  onClose: () => void;
+  agentToEdit?: AgentData; // Plus d'erreur ici grâce à la correction au-dessus
+>>>>>>> dev
 }
 const cleanString = (str: string) => {
   return str
@@ -453,7 +473,7 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
               <h3 className="text-xl text-white font-medium">
                 Création en cours...
               </h3>
-              <p className="text-gray-400 font-light text-sm animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-[280px] mx-auto leading-relaxed">
+              <p className="text-gray-400 font-light text-sm animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-70 mx-auto leading-relaxed">
                 {loadingText}
               </p>
             </div>

@@ -33,6 +33,7 @@ export default async function DashboardLayout({
         <div className="absolute inset-0 bg-black/70" />
       </div>
 
+<<<<<<< HEAD
       <Toaster position="bottom-right" theme="dark" richColors />
 
       {/* --- COUCHE 20 : SIDEBAR GAUCHE --- */}
@@ -46,6 +47,11 @@ export default async function DashboardLayout({
         <div className="h-full w-full overflow-y-auto custom-scrollbar">
           {children}
         </div>
+=======
+      {/* Le contenu des pages (page.tsx, users/page.tsx, etc.) s'affichera ici */}
+      <main className="flex-1 ml-20 md:ml-20 transition-all duration-300">
+        {children}
+>>>>>>> dev
       </main>
     </div>
   );
