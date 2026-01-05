@@ -1,5 +1,5 @@
 "use client";
-
+// FIX: Force update Vercel types
 import { useState, useEffect } from "react";
 // Assure-toi que ce chemin est bon pour UploadThing
 import { UploadButton } from "app/utils/uploadthing";
