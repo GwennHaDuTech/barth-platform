@@ -127,17 +127,56 @@ interface AgentData {
   linkedin?: string | null;
   tiktok?: string | null;
   bio?: string | null;
+}interface AgentData {
+  id: string;
+  firstname: string;
+  lastname: string;
+  email: string;
+  
+  phone: string | null;  // 👈 C'était l'erreur (null vs string)
+  photo: string | null;
+  city: string | null;
+  
+  zipCode?: string | null;
+  cityPhoto?: string | null;
+  secondarySector?: string | null;
+  instagram?: string | null;
+  linkedin?: string | null;
+  tiktok?: string | null;
+  bio?: string | null;
 }
-<<<<<<< HEAD
-interface Props {
-  onClose: () => void;
-  // On remplace 'any' par notre nouvelle interface précise
-  agentToEdit?: AgentData;
-=======
 
 interface Props {
   onClose: () => void;
+  agentToEdit?: AgentData; // Plus d'erreur ici
+}
+
+interface AgentData {
+  id: string;
+  firstname: string;
+  lastname: string;
+  email: string;
+
+  phone: string | null;
+  photo: string | null;
+  city: string | null;
+
+  zipCode?: string | null;
+  cityPhoto?: string | null;
+  secondarySector?: string | null;
+  instagram?: string | null;
+  linkedin?: string | null;
+  tiktok?: string | null;
+  bio?: string | null;
+}
+
+interface Props {
+  onClose: () => void;
+<<<<<<< HEAD
   agentToEdit?: AgentData; // Plus d'erreur ici grâce à la correction au-dessus
+>>>>>>> dev
+=======
+  agentToEdit?: AgentData; // Plus d'erreur ici
 >>>>>>> dev
 }
 const cleanString = (str: string) => {
