@@ -1,4 +1,3 @@
-// prisma/seed.ts
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
@@ -20,7 +19,6 @@ async function main() {
         create: [
           {
             title: "Appartement de prestige Place des Lices",
-            // ON REMET LES GUILLEMETS (String)
             price: "450 000 €",
             img: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688",
           },
@@ -29,9 +27,6 @@ async function main() {
     },
   });
 
-<<<<<<< HEAD
-  console.log("Base de données remplie avec :", { julie });
-=======
   // 2. Créer Thomas
   const thomas = await prisma.agent.upsert({
     where: { slug: "thomas" },
@@ -50,7 +45,6 @@ async function main() {
         create: [
           {
             title: "Villa Vue Mer",
-            // ON REMET LES GUILLEMETS (String)
             price: "850 000 €",
             img: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80",
           },
@@ -60,7 +54,6 @@ async function main() {
   });
 
   console.log("Base de données remplie avec :", { julie, thomas });
->>>>>>> dev
 }
 
 main()

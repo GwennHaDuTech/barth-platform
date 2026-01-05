@@ -1,6 +1,5 @@
 import React from "react";
 import Sidebar from "@/components/Sidebar";
-// On enlève l'import de RightSidebar ici
 import { Toaster } from "sonner";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
@@ -33,7 +32,6 @@ export default async function DashboardLayout({
         <div className="absolute inset-0 bg-black/70" />
       </div>
 
-<<<<<<< HEAD
       <Toaster position="bottom-right" theme="dark" richColors />
 
       {/* --- COUCHE 20 : SIDEBAR GAUCHE --- */}
@@ -43,15 +41,10 @@ export default async function DashboardLayout({
 
       {/* --- COUCHE 10 : CONTENU PRINCIPAL --- */}
       <main className="relative z-10 flex-1 h-full overflow-hidden">
-        {/* On laisse juste les children, c'est eux qui décideront s'ils ont une sidebar droite ou pas */}
+        {/* On laisse juste les children (la page gère le reste) */}
         <div className="h-full w-full overflow-y-auto custom-scrollbar">
           {children}
         </div>
-=======
-      {/* Le contenu des pages (page.tsx, users/page.tsx, etc.) s'affichera ici */}
-      <main className="flex-1 ml-20 md:ml-20 transition-all duration-300">
-        {children}
->>>>>>> dev
       </main>
     </div>
   );
