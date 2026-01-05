@@ -15,44 +15,38 @@
   --sidebar-collapsed-width: 5rem;
   --sidebar-expanded-width: 13rem; /* Largeur une fois ouvert */
 }
-
 .sidebar {
-  position: fixed;
-  top: 50%;
-  left: 24px;
-  transform: translateY(-50%);
+  /* CHANGEMENT MAJEUR : On passe de fixed à relative */
+  position: relative;
+  /* On enlève les top/left/transform qui cassaient tout */
+  top: auto;
+  left: auto;
+  transform: none;
+
+  /* On la colle à gauche avec une marge */
+  margin-top: 24px;
+  margin-left: 24px;
+  height: calc(100% - 48px); /* Hauteur totale moins les marges haut/bas */
 
   width: var(--sidebar-collapsed-width);
-  height: fit-content;
   min-height: 400px;
 
-  /* --- LE NOUVEL EFFET GLASS --- */
+  /* Le reste de ton style Glassmorphism reste identique */
   background-color: var(--glass-bg);
-
-  /* 1. Flou très élevé + Saturation (le secret du "beau" flou) */
   backdrop-filter: blur(50px) saturate(180%);
-  -webkit-backdrop-filter: blur(50px) saturate(180%); /* Pour Safari/Mac */
-
-  /* 2. Bordure fine et précise */
+  -webkit-backdrop-filter: blur(50px) saturate(180%);
   border: 1px solid var(--glass-border);
-
-  /* 3. Reflet interne pour donner de l'épaisseur au verre */
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4),
-    /* L'ombre portée derrière */ inset 0 1px 1px rgba(255, 255, 255, 0.1),
-    /* Petit reflet haut */ inset 0 0 20px rgba(255, 255, 255, 0.02); /* Lueur interne subtile */
-
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    inset 0 0 20px rgba(255, 255, 255, 0.02);
   border-radius: 24px;
-
   display: flex;
   flex-direction: column;
   padding: 1.5rem 1rem;
   gap: 1.5rem;
   overflow: hidden;
-  z-index: 50;
-
   transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1);
 }
-
 /* --- Au survol de la Sidebar --- */
 .sidebar:hover {
   width: var(--sidebar-expanded-width);

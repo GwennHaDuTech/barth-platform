@@ -1,37 +1,166 @@
 "use server";
-
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
-export async function updateAgent(id: string, formData: FormData) {
+// --- 1. SCHÉMA DE VALIDATION (Corrigé) ---
+const AgentFormSchema = z.object({
+  firstname: z.string().min(2, "Le prénom est requis"),
+  lastname: z.string().min(2, "Le nom est requis"),
+  // Email peut être vide string, mais on le gère comme string
+  email: z.string(),
+  phone: z.string().min(10, "Téléphone invalide"),
+
+  // CORRECTION : Photo est requise dans ta BDD, donc requise ici aussi
+  photo: z.string().min(1, "La photo est requise"),
+
+  city: z.string().min(2, "Ville requise"),
+
+  // Champs optionnels (nullable dans BDD)
+  zipCode: z.string().optional().or(z.literal("")),
+  cityPhoto: z.string().optional().or(z.literal("")),
+  secondarySector: z.string().optional().or(z.literal("")),
+  instagram: z.string().optional().or(z.literal("")),
+  linkedin: z.string().optional().or(z.literal("")),
+  tiktok: z.string().optional().or(z.literal("")),
+  bio: z.string().optional().or(z.literal("")),
+});
+
+// --- 2. CRÉATION D'AGENT ---
+export async function createAgent(formData: FormData) {
   try {
-    const rawData = Object.fromEntries(formData.entries());
+    const rawData = {
+      firstname: formData.get("firstname"),
+      lastname: formData.get("lastname"),
+      email: formData.get("email") || "", // Assure une string
+      phone: formData.get("phone"),
+      photo: formData.get("photo"),
+      city: formData.get("city"),
+      zipCode: formData.get("zipCode"),
+      cityPhoto: formData.get("cityPhotoUrl"),
+      secondarySector: formData.get("secondarySector"),
+      instagram: formData.get("instagram"),
+      linkedin: formData.get("linkedin"),
+      tiktok: formData.get("tiktok"),
+      bio: formData.get("bio"),
+    };
 
-    // On prépare les données à mettre à jour
-    // Note: On ne met PAS à jour le SLUG pour ne pas casser les liens existants
-    await prisma.agent.update({
-      where: { id },
+    const validated = AgentFormSchema.safeParse(rawData);
+
+    if (!validated.success) {
+      console.error("Erreur validation:", validated.error.flatten());
+      return {
+        success: false,
+        error: "Données invalides. Vérifiez les champs.",
+      };
+    }
+
+    const data = validated.data;
+
+    let slug = `${data.firstname}-${data.lastname}`
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[\s\W-]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+    const existingSlug = await prisma.agent.findUnique({ where: { slug } });
+    if (existingSlug) {
+      slug = `${slug}-${Math.floor(Math.random() * 10000)}`;
+    }
+
+    await prisma.agent.create({
       data: {
-        firstname: rawData.firstname as string,
-        lastname: rawData.lastname as string,
-        email: rawData.email as string, // On autorise le changement d'email si besoin
-        phone: rawData.phone as string,
-        photo: rawData.photo as string,
-
-        city: rawData.city as string,
-        zipCode: rawData.zipCode as string,
-        cityPhoto: rawData.cityPhotoUrl as string, // Attention au nom du champ DB vs Form
-        secondarySector: rawData.secondarySector as string,
-
-        instagram: rawData.instagram as string,
-        linkedin: rawData.linkedin as string,
-        tiktok: rawData.tiktok as string,
-        bio: rawData.bio as string,
+        firstname: data.firstname,
+        lastname: data.lastname,
+        email: data.email,
+        phone: data.phone,
+        photo: data.photo, // Maintenant garanti string par Zod
+        city: data.city,
+        zipCode: data.zipCode || null, // Transforme undefined/"" en null pour Prisma
+        cityPhoto: data.cityPhoto || null,
+        secondarySector: data.secondarySector || null,
+        instagram: data.instagram || null,
+        linkedin: data.linkedin || null,
+        tiktok: data.tiktok || null,
+        bio: data.bio || null,
+        slug: slug,
       },
     });
 
-    revalidatePath("/dashboard/users"); // Rafraîchit le tableau
-    revalidatePath(`/agent/${rawData.slug}`); // Rafraîchit le site public
+    revalidatePath("/dashboard/users");
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur createAgent:", error);
+
+    // CORRECTION : On vérifie proprement si c'est une erreur Prisma
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      // P2002 = Violation de contrainte unique (ex: email déjà pris)
+      if (error.code === "P2002") {
+        return { success: false, error: "Cet email ou ce nom existe déjà." };
+      }
+    }
+
+    return { success: false, error: "Erreur technique lors de la création." };
+  }
+}
+
+// ... Les autres fonctions (updateAgent, etc.) restent inchangées ou suivent la même logique
+// Si tu as updateAgent en dessous, assure-toi d'appliquer la même logique pour "catch (error)"
+// --- 3. MISE À JOUR D'AGENT (Fonctionnelle) ---
+export async function updateAgent(id: string, formData: FormData) {
+  try {
+    // 1. On récupère les données
+    const rawData = {
+      firstname: formData.get("firstname"),
+      lastname: formData.get("lastname"),
+      email: formData.get("email") || "",
+      phone: formData.get("phone"),
+      photo: formData.get("photo"),
+      city: formData.get("city"),
+      zipCode: formData.get("zipCode"),
+      cityPhoto: formData.get("cityPhotoUrl"), // Attention au mapping ici
+      secondarySector: formData.get("secondarySector"),
+      instagram: formData.get("instagram"),
+      linkedin: formData.get("linkedin"),
+      tiktok: formData.get("tiktok"),
+      bio: formData.get("bio"),
+    };
+
+    // 2. Validation Zod
+    const validated = AgentFormSchema.safeParse(rawData);
+
+    if (!validated.success) {
+      return {
+        success: false,
+        error: "Données invalides pour la mise à jour.",
+      };
+    }
+
+    // 3. Mise à jour en BDD (C'est ici qu'on utilise 'id', donc l'alerte disparaîtra)
+    await prisma.agent.update({
+      where: { id },
+      data: {
+        firstname: validated.data.firstname,
+        lastname: validated.data.lastname,
+        email: validated.data.email,
+        phone: validated.data.phone,
+        photo: validated.data.photo as string,
+        city: validated.data.city,
+        // Gestion des nullables pour Prisma
+        zipCode: validated.data.zipCode || null,
+        cityPhoto: validated.data.cityPhoto || null,
+        secondarySector: validated.data.secondarySector || null,
+        instagram: validated.data.instagram || null,
+        linkedin: validated.data.linkedin || null,
+        tiktok: validated.data.tiktok || null,
+        bio: validated.data.bio || null,
+        // Note : On ne met généralement pas à jour le slug pour ne pas casser le SEO
+      },
+    });
+
+    revalidatePath("/dashboard/users");
     return { success: true };
   } catch (error) {
     console.error("Erreur Update:", error);
@@ -44,87 +173,31 @@ export async function checkAgentDuplication(
   lastname: string
 ) {
   try {
+    // Ici, on utilise bien 'firstname' et 'lastname' dans la requête
     const existing = await prisma.agent.findFirst({
       where: {
-        firstname: { equals: firstname, mode: "insensitive" }, // Insensitive = ignore majuscules
+        firstname: { equals: firstname, mode: "insensitive" }, // insensible à la casse
         lastname: { equals: lastname, mode: "insensitive" },
       },
     });
-    return !!existing; // Renvoie true si trouvé (donc doublon), false si c'est libre
+
+    // Renvoie true si un agent existe, false sinon
+    return !!existing;
   } catch (error) {
     console.error("Erreur vérification doublon:", error);
-    return false; // Dans le doute, on laisse passer (la sécurité finale bloquera)
+    return false;
   }
 }
-
-export async function createAgent(formData: FormData) {
-  try {
-    // ... tes vérifications d'authentification existantes ...
-
-    const firstname = formData.get("firstname") as string;
-    const lastname = formData.get("lastname") as string;
-    const email = formData.get("email") as string;
-    const phone = formData.get("phone") as string;
-    const photo = formData.get("photo") as string;
-    const city = formData.get("city") as string;
-
-    // 👇 RÉCUPÉRATION DES NOUVEAUX CHAMPS
-    const zipCode = formData.get("zipCode") as string;
-    const cityPhoto = formData.get("cityPhotoUrl") as string; // Attention au nom "cityPhotoUrl" envoyé par le front
-    // -----------------------------------
-
-    const secondarySector = formData.get("secondarySector") as string;
-    const instagram = formData.get("instagram") as string;
-    const linkedin = formData.get("linkedin") as string;
-    const tiktok = formData.get("tiktok") as string;
-    const bio = formData.get("bio") as string;
-
-    // Génération du slug (ex: paul-durand)
-    const slug = `${firstname.toLowerCase()}-${lastname.toLowerCase()}`
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/\s+/g, "-");
-
-    // Création en base
-    await prisma.agent.create({
-      data: {
-        firstname,
-        lastname,
-        email,
-        phone,
-        photo,
-        city,
-
-        // 👇 ENREGISTREMENT
-        zipCode: zipCode || "",
-        cityPhoto: cityPhoto || "",
-        // ----------------
-
-        secondarySector,
-        instagram,
-        linkedin,
-        tiktok,
-        bio,
-        slug,
-      },
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error("Erreur createAgent:", error);
-    return { success: false, error: "Impossible de créer l'agent." };
-  }
-}
-
-// ... garde ta fonction deleteAgent en dessous, elle ne change pas
+// --- 5. SUPPRESSION (Fonctionnelle) ---
 export async function deleteAgent(agentId: string) {
-  // ... ton code existant ...
   try {
+    // On utilise 'agentId' ici pour cibler l'agent à supprimer
     await prisma.agent.delete({
       where: { id: agentId },
     });
 
-    revalidatePath("/dashboard");
+    // On rafraîchit la liste pour voir la disparition immédiate
+    revalidatePath("/dashboard/users");
     return { success: true };
   } catch (error) {
     console.error("Erreur suppression:", error);

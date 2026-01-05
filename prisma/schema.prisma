@@ -31,7 +31,7 @@ id        String   @id @default(cuid())
 model Listing {
   id        Int      @id @default(autoincrement())
   title     String
-  price     String
+  price     Float
   img       String
   agentId   String
   agent     Agent    @relation(fields: [agentId], references: [id])

@@ -1,17 +1,15 @@
-// app/dashboard/layout.tsx
 import React from "react";
 import Sidebar from "@/components/Sidebar";
-import RightSidebar from "@/components/RightSideBar";
+// On enlève l'import de RightSidebar ici
 import { Toaster } from "sonner";
-import { currentUser } from "@clerk/nextjs/server"; // Import Clerk
-import { redirect } from "next/navigation"; // Import Redirection
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // 🛡️ SÉCURITÉ ADMIN
   const user = await currentUser();
   const ALLOWED_EMAILS = [
     "paul@barth.fr",
@@ -19,47 +17,36 @@ export default async function DashboardLayout({
     "paulbroussouloux.pro@gmail.com",
     "theoonun@gmail.com",
   ];
-
   const userEmail = user?.emailAddresses[0]?.emailAddress?.toLowerCase();
 
-  // Si pas autorisé, on redirige vers l'accueil AVANT de rendre le reste
   if (!user || !userEmail || !ALLOWED_EMAILS.includes(userEmail)) {
     redirect("/");
   }
 
-  // ✅ SI AUTORISÉ, ON REND TON DESIGN ACTUEL
   return (
-    <div
-      className="min-h-screen flex text-white bg-barth-dark bg-cover bg-center bg-no-repeat bg-blend-overlay bg-black/70"
-      style={{ backgroundImage: "url('/background.jpg')" }}
-    >
-      <Toaster
-        position="bottom-right"
-        theme="dark"
-        expand={false}
-        richColors
-        toastOptions={{
-          style: {
-            background: "rgba(15, 15, 15, 0.95)",
-            backdropFilter: "blur(10px)",
-            border: "1px solid rgba(212, 175, 55, 0.3)",
-            color: "#fff",
-            borderRadius: "16px",
-          },
-          className: "font-sans",
-        }}
-      />
+    <div className="relative flex h-screen w-full overflow-hidden bg-barth-dark">
+      {/* --- COUCHE 0 : FOND --- */}
+      <div
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+        style={{ backgroundImage: "url('/background.jpg')" }}
+      >
+        <div className="absolute inset-0 bg-black/70" />
+      </div>
 
-      {/* 1. Sidebar Gauche */}
-      <Sidebar />
+      <Toaster position="bottom-right" theme="dark" richColors />
 
-      {/* 2. Contenu Principal Central */}
-      <main className="flex-1 p-8 overflow-y-auto h-screen">
-        <div className="max-w-6xl mx-auto h-full flex flex-col">{children}</div>
+      {/* --- COUCHE 20 : SIDEBAR GAUCHE --- */}
+      <div className="relative z-20 h-full flex-shrink-0">
+        <Sidebar />
+      </div>
+
+      {/* --- COUCHE 10 : CONTENU PRINCIPAL --- */}
+      <main className="relative z-10 flex-1 h-full overflow-hidden">
+        {/* On laisse juste les children, c'est eux qui décideront s'ils ont une sidebar droite ou pas */}
+        <div className="h-full w-full overflow-y-auto custom-scrollbar">
+          {children}
+        </div>
       </main>
-
-      {/* 3. Sidebar Droite */}
-      <RightSidebar />
     </div>
   );
 }
