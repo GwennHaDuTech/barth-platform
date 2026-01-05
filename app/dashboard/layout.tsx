@@ -1,60 +1,65 @@
 // app/dashboard/layout.tsx
-import { currentUser } from "@clerk/nextjs/server"; // Note l'import /server pour les composants serveur
-import { redirect } from "next/navigation";
-import Sidebar from "@/components/Sidebar"; // Assure-toi que le chemin est bon
-import styles from "./dashboard.module.css"; // Si tu as du CSS spécifique
-import Link from "next/link";
+import React from "react";
+import Sidebar from "@/components/Sidebar";
+import RightSidebar from "@/components/RightSideBar";
+import { Toaster } from "sonner";
+import { currentUser } from "@clerk/nextjs/server"; // Import Clerk
+import { redirect } from "next/navigation"; // Import Redirection
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // 1. Récupérer l'utilisateur connecté via Clerk
+  // 🛡️ SÉCURITÉ ADMIN
   const user = await currentUser();
+  const ALLOWED_EMAILS = [
+    "paul@barth.fr",
+    "associe@barth.fr",
+    "paulbroussouloux.pro@gmail.com",
+    "theoonun@gmail.com",
+  ];
 
-  // 2. Si personne n'est connecté, rediriger vers la page de connexion
-  if (!user) {
-    redirect("/sign-in");
+  const userEmail = user?.emailAddresses[0]?.emailAddress?.toLowerCase();
+
+  // Si pas autorisé, on redirige vers l'accueil AVANT de rendre le reste
+  if (!user || !userEmail || !ALLOWED_EMAILS.includes(userEmail)) {
+    redirect("/");
   }
 
-  // 3. LA SÉCURITÉ : Vérifier l'email
-  // On regarde si l'un des emails de l'utilisateur correspond à l'admin
-  const adminEmail = "theoonun@gmail.com";
-  const isAdmin = user.emailAddresses.some(
-    (email) => email.emailAddress === adminEmail
-  );
-
-  // 4. Si ce n'est pas Théo, on affiche une page "Interdit"
-  if (!isAdmin) {
-    return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-[#1a1a1a] text-white">
-        <h1 className="text-3xl font-bold text-red-500 mb-4">
-          Accès Refusé 🚫
-        </h1>
-        <p className="text-gray-400">
-          {`Vous n'avez pas les droits pour accéder au tableau de bord.`}
-        </p>
-        <Link
-          href="/"
-          className="mt-6 px-6 py-2 bg-[#D4AF37] text-black rounded-full font-bold hover:scale-105 transition"
-        >
-          {`Retour à l'accueil`}
-        </Link>
-      </div>
-    );
-  }
-
-  // 5. Si c'est Théo, on affiche le Dashboard avec la Sidebar
+  // ✅ SI AUTORISÉ, ON REND TON DESIGN ACTUEL
   return (
-    <div className="flex min-h-screen bg-[#1a1a1a]">
-      {/* La Sidebar s'affichera à gauche */}
+    <div
+      className="min-h-screen flex text-white bg-barth-dark bg-cover bg-center bg-no-repeat bg-blend-overlay bg-black/70"
+      style={{ backgroundImage: "url('/background.jpg')" }}
+    >
+      <Toaster
+        position="bottom-right"
+        theme="dark"
+        expand={false}
+        richColors
+        toastOptions={{
+          style: {
+            background: "rgba(15, 15, 15, 0.95)",
+            backdropFilter: "blur(10px)",
+            border: "1px solid rgba(212, 175, 55, 0.3)",
+            color: "#fff",
+            borderRadius: "16px",
+          },
+          className: "font-sans",
+        }}
+      />
+
+      {/* 1. Sidebar Gauche */}
       <Sidebar />
 
-      {/* Le contenu des pages (page.tsx, users/page.tsx, etc.) s'affichera ici */}
-      <main className="flex-1 ml-[5rem] md:ml-[5rem] transition-all duration-300">
-        {children}
+      {/* 2. Contenu Principal Central */}
+      <main className="flex-1 p-8 overflow-y-auto h-screen">
+        <div className="max-w-6xl mx-auto h-full flex flex-col">{children}</div>
       </main>
+
+      {/* 3. Sidebar Droite */}
+      <RightSidebar />
     </div>
   );
 }
