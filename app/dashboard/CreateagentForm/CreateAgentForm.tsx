@@ -98,10 +98,29 @@ interface SelectedCity {
   zip: string;
 }
 
+interface AgentData {
+  id: string;
+  firstname: string;
+  lastname: string;
+  email: string;
+
+  // ICI : On ajoute "| null" pour dire "ça peut être vide"
+  phone: string | null;
+  photo: string | null;
+  city: string | null;
+
+  zipCode?: string | null;
+  cityPhoto?: string | null;
+  secondarySector?: string | null;
+  instagram?: string | null;
+  linkedin?: string | null;
+  tiktok?: string | null;
+  bio?: string | null;
+}
+
 interface Props {
   onClose: () => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  agentToEdit?: any;
+  agentToEdit?: AgentData; // Plus d'erreur ici grâce à la correction au-dessus
 }
 
 const cleanString = (str: string) => {
@@ -443,7 +462,7 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
                   ? "Mise à jour en cours..."
                   : "Création en cours..."}
               </h3>
-              <p className="text-gray-400 font-light text-sm animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-[280px] mx-auto leading-relaxed">
+              <p className="text-gray-400 font-light text-sm animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-70 mx-auto leading-relaxed">
                 {loadingText}
               </p>
             </div>

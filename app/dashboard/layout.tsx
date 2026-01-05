@@ -52,7 +52,7 @@ export default async function DashboardLayout({
       <Sidebar />
 
       {/* Le contenu des pages (page.tsx, users/page.tsx, etc.) s'affichera ici */}
-      <main className="flex-1 ml-[5rem] md:ml-[5rem] transition-all duration-300">
+      <main className="flex-1 ml-20 md:ml-20 transition-all duration-300">
         {children}
       </main>
     </div>
