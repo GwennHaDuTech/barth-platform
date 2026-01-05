@@ -104,26 +104,7 @@ interface AgentData {
   lastname: string;
   email: string;
 
-  // ICI : On ajoute "| null" pour dire "ça peut être vide"
-  phone: string | null;
-  photo: string | null;
-  city: string | null;
-
-  zipCode?: string | null;
-  cityPhoto?: string | null;
-  secondarySector?: string | null;
-  instagram?: string | null;
-  linkedin?: string | null;
-  tiktok?: string | null;
-  bio?: string | null;
-}
-
-interface AgentData {
-  id: string;
-  firstname: string;
-  lastname: string;
-  email: string;
-
+  // 👇 C'est LÀ le problème. Il faut "| null"
   phone: string | null;
   photo: string | null;
   city: string | null;
