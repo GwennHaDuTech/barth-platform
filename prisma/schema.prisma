@@ -1,13 +1,11 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL") // Assure-toi que cette ligne est là pour Neon !
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Agent {
@@ -15,9 +13,9 @@ model Agent {
   firstname       String
   lastname        String
   email           String   @unique
-  phone           String
-  photo           String
-  city            String
+  phone           String?
+  photo           String?
+  city            String?
   zipCode         String?
   cityPhoto       String?
   secondarySector String?
@@ -29,16 +27,12 @@ model Agent {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   listings        Listing[]
-  // FORCE UPDATE VERCEL (Commentaire pour forcer la mise à jour)
 }
 
 model Listing {
   id      Int    @id @default(autoincrement())
   title   String
-  
-  // ✅ CORRECTION ICI : On passe en String pour accepter "450 000 €"
-  price   String 
-  
+  price   String
   img     String
   agentId String
   agent   Agent  @relation(fields: [agentId], references: [id])
