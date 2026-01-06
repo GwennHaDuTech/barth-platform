@@ -252,7 +252,9 @@ export default async function AgencyPublicPage({ params }: Props) {
               href={`tel:${agency.phone}`}
               className="inline-flex items-center gap-3 text-3xl md:text-5xl font-bold hover:text-barth-gold transition"
             >
-              <Phone size={32} md={48} /> {agency.phone}
+              {/* CORRECTION : On utilise className pour la taille responsive au lieu de size/md */}
+              <Phone className="w-8 h-8 md:w-12 md:h-12" />
+              {agency.phone}
             </a>
           )}
 
