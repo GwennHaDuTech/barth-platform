@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -5,34 +7,39 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // Assure-toi que cette ligne est là pour Neon !
 }
 
 model Agent {
-id        String   @id @default(cuid())
-  firstname String
-  lastname  String
-  email     String   @unique
-  phone     String
-  photo     String
-  city      String
-  zipCode   String?  // Ajouté (String car un code postal peut commencer par 0)
-  cityPhoto String?  // Ajouté (URL de l'image de couverture)
+  id              String   @id @default(cuid())
+  firstname       String
+  lastname        String
+  email           String   @unique
+  phone           String
+  photo           String
+  city            String
+  zipCode         String?
+  cityPhoto       String?
   secondarySector String?
-  instagram String?
-  linkedin  String?
-  tiktok    String?
-  bio       String? @db.Text
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-    listings  Listing[]
+  instagram       String?
+  linkedin        String?
+  tiktok          String?
+  bio             String?  @db.Text
+  slug            String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  listings        Listing[]
+  // FORCE UPDATE VERCEL (Commentaire pour forcer la mise à jour)
 }
 
 model Listing {
-  id        Int      @id @default(autoincrement())
-  title     String
-  price     Float
-  img       String
-  agentId   String
-  agent     Agent    @relation(fields: [agentId], references: [id])
+  id      Int    @id @default(autoincrement())
+  title   String
+  
+  // ✅ CORRECTION ICI : On passe en String pour accepter "450 000 €"
+  price   String 
+  
+  img     String
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
 }
