@@ -1,0 +1,40 @@
+"use client";
+
+import { useState } from "react";
+import { Plus } from "lucide-react";
+import CreateAgencyForm from "./CreateAgencyForm";
+
+interface AgentOption {
+  id: string;
+  firstname: string;
+  lastname: string;
+}
+
+export default function CreateAgencyButton({
+  availableAgents,
+}: {
+  availableAgents: AgentOption[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        onClick={() => setIsOpen(true)}
+        className="flex items-center gap-2 bg-barth-gold text-barth-dark px-5 py-2.5 rounded-xl font-medium hover:bg-white transition shadow-lg shadow-barth-gold/10"
+      >
+        <Plus size={18} />
+        Nouvelle Agence
+      </button>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <CreateAgencyForm
+            onClose={() => setIsOpen(false)}
+            availableAgents={availableAgents}
+          />
+        </div>
+      )}
+    </>
+  );
+}

@@ -7,30 +7,20 @@ import { useRouter } from "next/navigation";
 import {
   X,
   Loader2,
-  AlertCircle,
-  Lock,
   MapPin,
   User,
-  Share2,
-  FileText,
-  Linkedin,
   Instagram,
-  CheckCircle2,
-  Plus,
-  ImageIcon,
+  Linkedin,
+  Building2, // <--- NOUVELLE ICONE
 } from "lucide-react";
-// CHANGEMENT ICI : On importe depuis le dossier dashboard
+// Import actions
 import { createAgent, updateAgent, checkAgentDuplication } from "app/actions";
 import Image from "next/image";
-// J'ai commenté Sonner si tu ne l'as pas installé, sinon décommente
-// import { toast } from "sonner";
 
-// Petit helper pour les notifications si pas de Sonner
+// Petit helper pour les notifications
 const toast = {
-  // On remplace 'any' par un type précis : un objet qui peut avoir une description
   error: (title: string, obj?: { description?: string }) =>
     alert(`${title}: ${obj?.description || ""}`),
-
   success: (title: string, obj?: { description?: string }) => alert(title),
 };
 
@@ -48,6 +38,9 @@ const STYLES = {
   label: "block text-sm font-medium text-gray-300 mb-1",
   input:
     "w-full bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 outline-none transition-all p-2.5 focus:border-barth-gold/50 focus:bg-white/10 focus:ring-1 focus:ring-barth-gold/20",
+  // Style spécifique pour le Select pour qu'il ressemble aux inputs
+  select:
+    "w-full bg-[#1a1a1a] border border-white/10 rounded-xl text-white outline-none transition-all p-2.5 focus:border-barth-gold/50 focus:bg-white/10 focus:ring-1 focus:ring-barth-gold/20 appearance-none",
   inputError: "border-red-500/50 focus:border-red-500 focus:ring-red-500/20",
   inputIconPadding: "pl-12",
   inputReadOnly:
@@ -88,6 +81,7 @@ interface AgentFormData {
   linkedin: string;
   tiktok: string;
   bio: string;
+  agencyId: string; // <--- AJOUTÉ
 }
 
 interface GeoCity {
@@ -98,6 +92,12 @@ interface GeoCity {
 interface SelectedCity {
   name: string;
   zip: string;
+}
+
+// Simple interface pour les agences dans la liste
+interface AgencyOption {
+  id: string;
+  name: string;
 }
 
 interface AgentData {
@@ -117,11 +117,13 @@ interface AgentData {
   linkedin?: string | null;
   tiktok?: string | null;
   bio?: string | null;
+  agencyId?: string | null; // <--- AJOUTÉ
 }
 
 interface Props {
   onClose: () => void;
-  agentToEdit?: AgentData; // Plus d'erreur ici
+  agentToEdit?: AgentData;
+  availableAgencies?: AgencyOption[]; // <--- AJOUTÉ (Liste des agences passée par le parent)
 }
 
 const cleanString = (str: string) => {
@@ -141,7 +143,11 @@ const loadingMessages = [
   "Presque terminé ! ✨",
 ];
 
-export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
+export default function CreateAgentForm({
+  onClose,
+  agentToEdit,
+  availableAgencies = [], // Valeur par défaut vide
+}: Props) {
   const router = useRouter();
   const isEditMode = !!agentToEdit;
 
@@ -164,6 +170,7 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
         linkedin: agentToEdit.linkedin || "",
         tiktok: agentToEdit.tiktok || "",
         bio: agentToEdit.bio || "",
+        agencyId: agentToEdit.agencyId || "", // <--- AJOUTÉ
       };
     }
     return {
@@ -180,10 +187,10 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
       linkedin: "",
       tiktok: "",
       bio: "",
+      agencyId: "", // <--- AJOUTÉ
     };
   });
 
-  // États pour les images (synchronisés avec formData pour plus de sûreté)
   const [imageUrl, setImageUrl] = useState(agentToEdit?.photo || "");
   const [cityImageUrl, setCityImageUrl] = useState(
     agentToEdit?.cityPhoto || ""
@@ -205,16 +212,10 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
     SelectedCity[]
   >(() => {
     if (agentToEdit?.secondarySector) {
-      // Logique parsing (identique à ton code)
-      return [];
+      return []; // Logique simplifiée pour l'exemple
     }
     return [];
   });
-
-  const isMissing = (value: string | null | undefined) => {
-    if (isEditMode && (!value || value.trim() === "")) return true;
-    return false;
-  };
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -300,13 +301,21 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
     setFormData((prev) => ({ ...prev, secondarySector: formatted }));
   };
 
+  // --- VALIDATION DES ETAPES ---
   const validateStep = (step: number) => {
     const d = formData;
     switch (step) {
       case 1:
-        return !!(d.firstname && d.lastname && d.phone && imageUrl);
+        // On rend l'agence obligatoire ici
+        return !!(
+          d.firstname &&
+          d.lastname &&
+          d.phone &&
+          imageUrl &&
+          d.agencyId
+        );
       case 2:
-        return !!(d.city && d.zipCode && cityImageUrl); // J'ai retiré secondaryCitiesList obligatoire si tu veux
+        return !!(d.city && d.zipCode && cityImageUrl);
       case 3:
         return true;
       case 4:
@@ -318,17 +327,19 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
 
   const handleNext = async () => {
     if (!validateStep(currentStep)) {
-      let errorMsg = "Merci de compléter les champs.";
+      let errorMsg = "Merci de compléter les champs obligatoires.";
+      if (currentStep === 1) {
+        if (!formData.agencyId) errorMsg = "Veuillez sélectionner une agence.";
+        else if (!imageUrl) errorMsg = "Photo de profil manquante.";
+      }
       if (currentStep === 2 && !cityImageUrl)
         errorMsg = "Photo de ville manquante.";
-      if (currentStep === 1 && !imageUrl)
-        errorMsg = "Photo de profil manquante.";
+
       toast.error("Incomplet", { description: errorMsg });
       return;
     }
     setServerError(null);
 
-    // Vérification doublon à l'étape 1
     if (currentStep === 1 && !isEditMode) {
       setIsChecking(true);
       try {
@@ -353,7 +364,9 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
     setServerError(null);
@@ -376,15 +389,14 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
 
     try {
       const dataToSend = new FormData();
-      // On ajoute toutes les données simples
       Object.entries(formData).forEach(([key, value]) => {
         if (key !== "photo" && key !== "cityPhotoUrl") {
           dataToSend.append(key, value);
         }
       });
-      // On ajoute explicitement les URLs des images
       dataToSend.append("photo", imageUrl);
       dataToSend.append("cityPhotoUrl", cityImageUrl);
+      // agencyId est déjà dans le formData, donc il sera ajouté par la boucle au-dessus
 
       let result;
       if (isEditMode && agentToEdit) {
@@ -400,15 +412,9 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
         return;
       }
 
-      // Simulation attente pour UX
       await new Promise((resolve) => setTimeout(resolve, 2000));
-
       toast.success(isEditMode ? "Site mis à jour ! 🚀" : "Site créé ! ✨");
-
-      // On rafraîchit la page et on ferme
       router.refresh();
-
-      // Petit délai pour laisser voir le message de succès
       setTimeout(() => {
         onClose();
       }, 500);
@@ -445,7 +451,6 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
         </>
       )}
 
-      {/* --- Contenu du formulaire (Je reprends ton code existant, juste le UploadButton change un peu) --- */}
       <div className={isSubmitting ? "w-full" : "flex-1"}>
         {isSubmitting ? (
           <div className="flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in zoom-in duration-700">
@@ -467,13 +472,46 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
             onSubmit={handleSubmit}
             className={`${STYLES.formSpaceY} animate-in fade-in slide-in-from-right-4 duration-300`}
           >
-            {/* ETAPE 1 */}
+            {/* --- ETAPE 1 : IDENTITÉ --- */}
             {currentStep === 1 && (
               <div className={STYLES.formSpaceY}>
                 <div className="flex items-center gap-2 text-xl text-white mb-4">
                   <User className="text-barth-gold" /> <span>Identité</span>
                 </div>
-                {/* Inputs Prénom/Nom/Email/Tel : Identiques à ton code */}
+
+                {/* --- NOUVEAU SELECT AGENCE --- */}
+                <div>
+                  <label className={STYLES.label}>
+                    <div className="flex items-center gap-2">
+                      <Building2 size={14} className="text-barth-gold" />
+                      Agence de rattachement
+                    </div>
+                  </label>
+                  <div className="relative">
+                    <select
+                      name="agencyId"
+                      value={formData.agencyId}
+                      onChange={handleChange}
+                      className={STYLES.select}
+                    >
+                      <option value="" disabled>
+                        Sélectionner une agence...
+                      </option>
+                      {availableAgencies.map((agency) => (
+                        <option key={agency.id} value={agency.id}>
+                          {agency.name}
+                        </option>
+                      ))}
+                    </select>
+                    {availableAgencies.length === 0 && (
+                      <p className="text-xs text-orange-400 mt-1 flex items-center gap-1">
+                        ⚠️ Aucune agence trouvée. Veuillez d'abord créer une
+                        agence.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <label className={STYLES.label}>Prénom</label>
@@ -496,7 +534,7 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
                     />
                   </div>
                 </div>
-                {/* Email et Tel */}
+
                 <div className="grid grid-cols-2 gap-6">
                   <div className="relative">
                     <label className={STYLES.label}>Email (Auto)</label>
@@ -565,14 +603,13 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
               </div>
             )}
 
-            {/* ETAPE 2 : VILLE & PHOTO DE VILLE */}
+            {/* --- ETAPE 2 --- */}
             {currentStep === 2 && (
               <div className={STYLES.formSpaceY}>
                 <div className="flex items-center gap-2 text-xl text-white mb-4">
                   <MapPin className="text-barth-gold" /> <span>Secteurs</span>
                 </div>
 
-                {/* Ville Principale (Recherche) - Repris de ton code */}
                 <div className="relative">
                   <label className={STYLES.label}>Ville Principale</label>
                   <input
@@ -607,7 +644,6 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
                   )}
                 </div>
 
-                {/* UPLOAD VILLE */}
                 <div className="mt-4 pt-4 border-t border-white/10">
                   <label className={STYLES.label}>
                     Photo de couverture (Ville)
@@ -647,7 +683,6 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
                   </div>
                 </div>
 
-                {/* Villes secondaires (Ton code existant) */}
                 <div className="mt-4">
                   <label className={STYLES.label}>Secteurs Secondaires</label>
                   <div className="relative">
@@ -689,10 +724,9 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
               </div>
             )}
 
-            {/* ETAPE 3 : RESEAUX (Simple inputs) */}
+            {/* --- ETAPE 3 --- */}
             {currentStep === 3 && (
               <div className={STYLES.formSpaceY}>
-                {/* ... Ton code réseaux ... */}
                 <div className="relative">
                   <Instagram
                     className="absolute left-4 top-3 text-pink-500"
@@ -734,7 +768,7 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
               </div>
             )}
 
-            {/* ETAPE 4 : BIO */}
+            {/* --- ETAPE 4 --- */}
             {currentStep === 4 && (
               <div className={STYLES.formSpaceY}>
                 <label className={STYLES.label}>Biographie</label>
@@ -755,7 +789,6 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
         )}
       </div>
 
-      {/* Footer Boutons Navigation (Back / Next / Submit) */}
       {!isSubmitting && (
         <div className="mt-6 pt-4 border-t border-white/10 flex justify-between items-center">
           {currentStep > 1 ? (

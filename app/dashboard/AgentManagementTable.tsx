@@ -14,7 +14,13 @@ import {
 } from "lucide-react";
 import CreateAgentForm from "../dashboard/CreateagentForm/CreateAgentForm";
 
-// ✅ INTERFACE CORRIGÉE : city accepte maintenant null
+// Définition de l'agence pour le typage
+interface AgencyOption {
+  id: string;
+  name: string;
+}
+
+// ✅ INTERFACE
 interface Agent {
   id: string;
   firstname: string;
@@ -24,7 +30,7 @@ interface Agent {
   slug: string;
 
   // Champs Localisation
-  city: string | null; // <--- C'était l'erreur (string -> string | null)
+  city: string | null;
   zipCode: string | null;
   cityPhoto: string | null;
   secondarySector: string | null;
@@ -35,6 +41,9 @@ interface Agent {
   linkedin: string | null;
   tiktok: string | null;
   bio: string | null;
+
+  // ✅ AJOUT
+  agencyId: string | null;
 
   // Listings
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,15 +56,20 @@ interface Props {
   initialAgents: Agent[];
   domain: string;
   protocol: string;
+  // ✅ AJOUT : La liste des agences reçue du parent
+  availableAgencies: AgencyOption[];
 }
 
 // --- LOGIQUE DE CONFORMITÉ ---
 const checkConformity = (agent: Agent) => {
   const missingFields = [];
 
+  // ✅ Règle Agence
+  if (!agent.agencyId) missingFields.push("Agence de rattachement");
+
   if (!agent.photo) missingFields.push("Photo de profil");
   if (!agent.zipCode) missingFields.push("Code Postal");
-  if (!agent.city) missingFields.push("Ville"); // On vérifie la ville ici
+  if (!agent.city) missingFields.push("Ville");
   if (!agent.cityPhoto) missingFields.push("Photo de couverture");
   if (!agent.listings || agent.listings.length === 0)
     missingFields.push("Annonces (Listings)");
@@ -66,14 +80,16 @@ const checkConformity = (agent: Agent) => {
   };
 };
 
-export default function AgentManagementTable({ initialAgents }: Props) {
+export default function AgentManagementTable({
+  initialAgents,
+  availableAgencies,
+}: Props) {
   const [agents, setAgents] = useState(initialAgents);
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "asc" | "desc";
   } | null>(null);
 
-  // État pour la modale d'édition
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
 
   const handleSort = (key: string) => {
@@ -97,7 +113,6 @@ export default function AgentManagementTable({ initialAgents }: Props) {
         return 0;
       }
 
-      // Gestion sécurisée des nulls pour le tri
       const valA = a[key] || "";
       const valB = b[key] || "";
 
@@ -118,16 +133,17 @@ export default function AgentManagementTable({ initialAgents }: Props) {
     <div className="w-full h-full overflow-y-auto custom-scrollbar relative">
       {/* MODALE D'ÉDITION */}
       {editingAgent && (
-        <div className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 z-50">
           <CreateAgentForm
             onClose={() => setEditingAgent(null)}
             agentToEdit={editingAgent}
+            // ✅ AJOUT : On transmet la liste au formulaire
+            availableAgencies={availableAgencies}
           />
         </div>
       )}
 
       <table className="w-full text-left text-sm text-gray-400">
-        {/* --- HEADERS --- */}
         <thead className="text-xs uppercase border-b border-white/10 text-barth-gold sticky top-0 bg-[#0a0a0a]/90 backdrop-blur-md z-10">
           <tr>
             <th
@@ -166,7 +182,6 @@ export default function AgentManagementTable({ initialAgents }: Props) {
           </tr>
         </thead>
 
-        {/* --- BODY --- */}
         <tbody className="divide-y divide-white/5">
           {agents.map((agent) => {
             const { isCompliant, missingFields } = checkConformity(agent);
@@ -208,13 +223,15 @@ export default function AgentManagementTable({ initialAgents }: Props) {
                 {/* 2. STATUT */}
                 <td className="px-6 py-4">
                   <div className="relative group/tooltip inline-block">
-                    <div
+                    <button
+                      onClick={() => !isCompliant && handleEditClick(agent)}
+                      disabled={isCompliant}
                       className={`
-                            flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border
+                            flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all
                             ${
                               isCompliant
-                                ? "bg-green-500/10 border-green-500/20 text-green-400"
-                                : "bg-red-500/10 border-red-500/20 text-red-400 animate-pulse-slow"
+                                ? "bg-green-500/10 border-green-500/20 text-green-400 cursor-default"
+                                : "bg-red-500/10 border-red-500/20 text-red-400 animate-pulse-slow hover:bg-red-500/20 cursor-pointer"
                             }
                           `}
                     >
@@ -224,7 +241,7 @@ export default function AgentManagementTable({ initialAgents }: Props) {
                         <AlertCircle size={14} />
                       )}
                       {isCompliant ? "Conforme" : "Action requise"}
-                    </div>
+                    </button>
 
                     {!isCompliant && (
                       <div className="absolute left-0 bottom-full mb-2 w-48 p-3 bg-black border border-white/10 rounded-xl shadow-xl opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-50">
@@ -236,6 +253,9 @@ export default function AgentManagementTable({ initialAgents }: Props) {
                             <li key={i}>{field}</li>
                           ))}
                         </ul>
+                        <div className="mt-2 text-[10px] text-barth-gold italic">
+                          Cliquez pour corriger
+                        </div>
                       </div>
                     )}
                   </div>

@@ -1,7 +1,8 @@
 // app/dashboard/users/page.tsx
 import prisma from "@/lib/prisma";
 import GlassCard from "@/components/ui/GlassCard";
-import AgentManagementTable from "../AgentManagementTable"; // On va le créer juste après
+import AgentManagementTable from "../AgentManagementTable";
+import { getAgencies } from "@/app/actions"; // <--- 1. IMPORT NOUVEAU
 
 export default async function UsersManagementPage() {
   // On récupère les agents AVEC leurs listings pour vérifier la conformité
@@ -11,6 +12,9 @@ export default async function UsersManagementPage() {
       listings: true, // Crucial pour savoir si l'agent a des annonces
     },
   });
+
+  // <--- 2. RÉCUPÉRATION DES AGENCES (NOUVEAU)
+  const agencies = await getAgencies();
 
   const isProduction = process.env.NODE_ENV === "production";
   const domain = isProduction ? "barth-platform.vercel.app" : "localhost:3000";
@@ -28,7 +32,7 @@ export default async function UsersManagementPage() {
           </p>
         </div>
 
-        {/* Petit compteur global (facultatif) */}
+        {/* Petit compteur global */}
         <div className="text-right">
           <span className="text-4xl font-light text-barth-gold">
             {agents.length}
@@ -42,6 +46,7 @@ export default async function UsersManagementPage() {
           initialAgents={agents}
           domain={domain}
           protocol={protocol}
+          availableAgencies={agencies} // <--- 3. PASSAGE DE LA PROP AU TABLEAU
         />
       </GlassCard>
     </div>
