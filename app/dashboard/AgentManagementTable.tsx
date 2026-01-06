@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import CreateAgentForm from "../dashboard/CreateagentForm/CreateAgentForm";
 
-// ✅ Interface complète et alignée avec le Formulaire + Prisma
+// ✅ INTERFACE CORRIGÉE : city accepte maintenant null
 interface Agent {
   id: string;
   firstname: string;
@@ -24,7 +24,7 @@ interface Agent {
   slug: string;
 
   // Champs Localisation
-  city: string;
+  city: string | null; // <--- C'était l'erreur (string -> string | null)
   zipCode: string | null;
   cityPhoto: string | null;
   secondarySector: string | null;
@@ -36,7 +36,7 @@ interface Agent {
   tiktok: string | null;
   bio: string | null;
 
-  // Listings (On ignore l'erreur linting ici car on ne gère pas encore le type Listing complet)
+  // Listings
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   listings: any[];
 
@@ -55,6 +55,7 @@ const checkConformity = (agent: Agent) => {
 
   if (!agent.photo) missingFields.push("Photo de profil");
   if (!agent.zipCode) missingFields.push("Code Postal");
+  if (!agent.city) missingFields.push("Ville"); // On vérifie la ville ici
   if (!agent.cityPhoto) missingFields.push("Photo de couverture");
   if (!agent.listings || agent.listings.length === 0)
     missingFields.push("Annonces (Listings)");
@@ -91,12 +92,17 @@ export default function AgentManagementTable({ initialAgents }: Props) {
         const statusB = checkConformity(b).isCompliant ? 1 : 0;
         return direction === "asc" ? statusA - statusB : statusB - statusA;
       }
-      // Pour les visites, on simule un tri
+
       if (key === "visits") {
         return 0;
       }
-      if (a[key] < b[key]) return direction === "asc" ? -1 : 1;
-      if (a[key] > b[key]) return direction === "asc" ? 1 : -1;
+
+      // Gestion sécurisée des nulls pour le tri
+      const valA = a[key] || "";
+      const valB = b[key] || "";
+
+      if (valA < valB) return direction === "asc" ? -1 : 1;
+      if (valA > valB) return direction === "asc" ? 1 : -1;
       return 0;
     });
 
@@ -113,7 +119,6 @@ export default function AgentManagementTable({ initialAgents }: Props) {
       {/* MODALE D'ÉDITION */}
       {editingAgent && (
         <div className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          {/* On passe l'agent à éditer au composant */}
           <CreateAgentForm
             onClose={() => setEditingAgent(null)}
             agentToEdit={editingAgent}
@@ -211,7 +216,7 @@ export default function AgentManagementTable({ initialAgents }: Props) {
                                 ? "bg-green-500/10 border-green-500/20 text-green-400"
                                 : "bg-red-500/10 border-red-500/20 text-red-400 animate-pulse-slow"
                             }
-                        `}
+                          `}
                     >
                       {isCompliant ? (
                         <CheckCircle2 size={14} />
@@ -241,7 +246,7 @@ export default function AgentManagementTable({ initialAgents }: Props) {
                   <div className="flex flex-col">
                     <span className="text-gray-300 flex items-center gap-1.5">
                       <MapPin size={14} className="text-gray-600" />{" "}
-                      {agent.city}
+                      {agent.city || "Ville non renseignée"}
                     </span>
                     <span className="text-xs text-gray-600 pl-5">
                       {agent.zipCode || "Code postal manquant"}
@@ -249,7 +254,7 @@ export default function AgentManagementTable({ initialAgents }: Props) {
                   </div>
                 </td>
 
-                {/* 4. VISITES (Stable) */}
+                {/* 4. VISITES */}
                 <td className="px-6 py-4 text-center">
                   <span className="font-mono text-white/80">
                     {(agent.lastname.length + agent.firstname.length) * 123}
