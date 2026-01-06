@@ -24,14 +24,14 @@ export default clerkMiddleware(async (auth, req) => {
 
   // --- CAS 2 : On est sur un sous-domaine (Site Agent) ---
   // Ex: hostname = "tom.merel.localhost" -> on garde "tom.merel"
-  const subdomain = hostname
+  const slug = hostname
     .replace(".localhost", "")
     .replace(".barth-platform.vercel.app", "");
 
   // On réécrit l'URL en interne pour pointer vers le dossier /sites/[site]
   // Cela permet d'afficher le contenu de l'agent tout en gardant l'URL jolie
   return NextResponse.rewrite(
-    new URL(`/sites/${subdomain}${url.pathname}`, req.url)
+    new URL(`/sites/${slug}${url.pathname}`, req.url)
   );
 });
 
