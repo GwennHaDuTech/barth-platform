@@ -11,10 +11,10 @@ export default async function DashboardLayout({
 }) {
   const user = await currentUser();
   const ALLOWED_EMAILS = [
-    "paul@barth.fr",
-    "associe@barth.fr",
     "paulbroussouloux.pro@gmail.com",
-    "theoonun@gmail.com",
+    "damien.jarry@barthimmobilier.fr",
+    "steven.barbier@barthimmobilier.fr",
+    "matthieu.menez@barthimmobilier.fr",
   ];
   const userEmail = user?.emailAddresses[0]?.emailAddress?.toLowerCase();
 
