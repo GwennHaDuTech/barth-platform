@@ -13,15 +13,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// 1. Interface correspondant EXACTEMENT à ton Prisma Schema actuel
+// ✅ CORRECTION : On autorise les nulls pour correspondre à la base de données
 interface Agent {
   id: string;
   firstname: string;
   lastname: string;
   email: string;
-  photo: string;
-  slug: string; // C'est lui la clé pour le lien !
-  city: string;
+  photo: string | null; // <-- C'était l'erreur (string -> string | null)
+  slug: string;
+  city: string | null; // <-- Par sécurité, on met null ici aussi
   createdAt: Date;
 }
 
@@ -32,12 +32,7 @@ interface AgentListProps {
   isProduction: boolean;
 }
 
-export default function AgentListTable({
-  initialAgents,
-  domain,
-  protocol,
-  isProduction,
-}: AgentListProps) {
+export default function AgentListTable({ initialAgents }: AgentListProps) {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -114,7 +109,9 @@ export default function AgentListTable({
               </td>
 
               {/* COLONNE VILLE */}
-              <td className="px-4 py-4 text-gray-300">{agent.city}</td>
+              <td className="px-4 py-4 text-gray-300">
+                {agent.city || "Non renseigné"}
+              </td>
 
               {/* COLONNE DATE */}
               <td className="px-4 py-4 text-gray-500">
@@ -124,7 +121,7 @@ export default function AgentListTable({
               {/* COLONNE ACTIONS */}
               <td className="px-4 py-4 text-right">
                 <div className="flex items-center justify-end gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                  {/* --- LE LIEN MAGIQUE VERS LA PAGE PUBLIQUE --- */}
+                  {/* --- LE LIEN VERS LA PAGE PUBLIQUE --- */}
                   <Link
                     href={`/agent/${agent.slug}`}
                     target="_blank"
@@ -151,7 +148,7 @@ export default function AgentListTable({
         </tbody>
       </table>
 
-      {/* --- POPUP DE CONFIRMATION (Tu l'avais déjà, je l'ai gardé) --- */}
+      {/* --- POPUP DE CONFIRMATION --- */}
       {selectedAgent && (
         <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-[#0f0f0f] border border-white/10 p-8 rounded-3xl max-w-md w-full shadow-2xl">
