@@ -279,3 +279,25 @@ export async function deleteAgency(id: string) {
     return { success: false, error: "Impossible de supprimer l'agence." };
   }
 }
+// --- SUPPRESSION D'AGENCE ---
+export async function deleteAgency(agencyId: string) {
+  try {
+    // 1. Suppression dans la base de données
+    // Note: Si tu as configuré ton Schema Prisma correctement,
+    // les agents liés seront soit détachés (null), soit supprimés selon tes règles.
+    // Par défaut ici, on supprime juste l'agence.
+    await prisma.agency.delete({
+      where: {
+        id: agencyId,
+      },
+    });
+
+    // 2. Rafraîchir la page des agences pour voir le changement immédiat
+    revalidatePath("/dashboard/agencies");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur lors de la suppression de l'agence:", error);
+    return { success: false, error: "Impossible de supprimer l'agence." };
+  }
+}
