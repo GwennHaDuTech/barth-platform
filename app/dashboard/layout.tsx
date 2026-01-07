@@ -36,7 +36,7 @@ export default async function DashboardLayout({
       <Toaster position="bottom-right" theme="dark" richColors />
 
       {/* --- COUCHE 20 : SIDEBAR GAUCHE --- */}
-      <div className="relative z-20 h-full flex-shrink-0">
+      <div className="relative z-20 h-full shrink-0">
         <Sidebar />
       </div>
 

@@ -26,7 +26,7 @@ export default async function AgenciesPage() {
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-light text-white mb-2">
-            Réseau d'Agences
+            {`Réseau d'Agences`}
           </h1>
           <p className="text-gray-400 text-sm">
             Gérez vos points de vente physiques et digitaux.
