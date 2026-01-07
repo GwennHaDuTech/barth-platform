@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// Assure-toi que ce chemin est bon pour UploadThing
-import { UploadButton } from "app/utils/uploadthing";
+import { UploadButton } from "@/app/utils/uploadthing";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner"; // <--- ON UTILISE LA VRAIE LIBRAIRIE ICI
+import { toast } from "sonner";
 import {
   X,
   Loader2,
@@ -15,11 +14,7 @@ import {
   Building2,
 } from "lucide-react";
 import Image from "next/image";
-
-// Import actions
 import { createAgent, updateAgent, checkAgentDuplication } from "@/app/actions";
-
-// ON A SUPPRIMÉ L'ANCIEN OBJET "const toast = ..." QUI CREAIT LE CONFLIT
 
 const STYLES = {
   container:
@@ -36,7 +31,7 @@ const STYLES = {
   input:
     "w-full bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 outline-none transition-all p-2.5 focus:border-barth-gold/50 focus:bg-white/10 focus:ring-1 focus:ring-barth-gold/20",
   select:
-    "w-full bg-[#1a1a1a] border border-white/10 rounded-xl text-white outline-none transition-all p-2.5 focus:border-barth-gold/50 focus:bg-white/10 focus:ring-1 focus:ring-barth-gold/20 appearance-none",
+    "w-full bg-[#1a1a1a] border border-white/10 rounded-xl text-white outline-none transition-all p-2.5 focus:border-barth-gold/50 focus:bg-white/10 focus:ring-1 focus:ring-barth-gold/20 appearance-none cursor-pointer",
   inputError: "border-red-500/50 focus:border-red-500 focus:ring-red-500/20",
   inputIconPadding: "pl-12",
   inputReadOnly:
@@ -54,7 +49,7 @@ const STYLES = {
   chipRemove: "hover:text-white transition",
   btnBack: "text-gray-400 hover:text-white transition text-sm px-4 py-2",
   btnNext:
-    "bg-barth-gold text-barth-dark font-medium px-6 py-2.5 rounded-xl hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm",
+    "bg-transparent text-white border border-transparent hover:border-white font-medium px-6 py-2.5 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm",
   btnSubmit:
     "bg-gradient-to-r from-barth-gold to-[#bf9b30] text-barth-dark font-bold px-6 py-2.5 rounded-xl hover:shadow-[0_0_20px_rgba(191,155,48,0.3)] transition-shadow disabled:opacity-50 disabled:cursor-not-allowed text-sm",
   errorBox:
@@ -115,7 +110,7 @@ interface AgentData {
 
 interface Props {
   onClose: () => void;
-  agentToEdit?: AgentData | null; // null possible
+  agentToEdit?: AgentData | null;
   availableAgencies?: AgencyOption[];
 }
 
@@ -197,16 +192,15 @@ export default function CreateAgentForm({
   const [citySuggestions, setCitySuggestions] = useState<GeoCity[]>([]);
   const [showZipInput, setShowZipInput] = useState(false);
   const [isValidatedCity, setIsValidatedCity] = useState(!!agentToEdit?.city);
+
+  // Ces variables sont maintenant utilisées dans l'étape 2 restaurée plus bas
   const [secondaryQuery, setSecondaryQuery] = useState("");
   const [secondarySuggestions, setSecondarySuggestions] = useState<GeoCity[]>(
     []
   );
   const [secondaryCitiesList, setSecondaryCitiesList] = useState<
     SelectedCity[]
-  >(() => {
-    // Si on voulait parser le secteur secondaire existant, ce serait ici
-    return [];
-  });
+  >([]);
 
   // Gestion de l'animation de chargement
   useEffect(() => {
@@ -299,7 +293,6 @@ export default function CreateAgentForm({
     const d = formData;
     switch (step) {
       case 1:
-        // Nom, Prénom, Tel, Photo, Agence obligatoires
         return !!(
           d.firstname &&
           d.lastname &&
@@ -310,7 +303,7 @@ export default function CreateAgentForm({
       case 2:
         return !!(d.city && d.zipCode && cityImageUrl);
       case 3:
-        return true; // Réseaux sociaux optionnels
+        return true;
       case 4:
         return d.bio.length > 20;
       default:
@@ -366,55 +359,55 @@ export default function CreateAgentForm({
     const { name, value } = e.target;
     setServerError(null);
     setFormData((prev) => {
+      // ✅ CORRECTION : Utilisation de const au lieu de let
       const newData = { ...prev, [name]: value };
-      // Auto-génération de l'email en mode création
+
+      // Auto-formatting Phone
+      if (name === "phone") {
+        let clean = value.replace(/\D/g, "");
+        if (clean.length > 10) clean = clean.slice(0, 10);
+        const formatted = clean.match(/.{1,2}/g)?.join(" ") || clean;
+        newData.phone = formatted;
+      }
+
+      // Auto-generation Email
       if (!isEditMode && (name === "firstname" || name === "lastname")) {
         const fName = cleanString(newData.firstname);
         const lName = cleanString(newData.lastname);
-        if (fName && lName) newData.email = `${fName}.${lName}@barth-immo.fr`;
+        if (fName || lName)
+          newData.email = `${fName}${lName ? "." + lName : ""}@barth-immo.fr`;
         else newData.email = "";
       }
       return newData;
     });
   };
 
-  // --- FONCTION DE SOUMISSION CORRIGÉE ---
-  const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    // Note : On utilise onClick sur le bouton, donc pas de e.preventDefault() nécessaire
-    // sauf si le bouton est dans <form> sans type="button".
-    // Ici le bouton est hors du <form> dans ton design, donc ça va.
-
+  // ✅ CORRECTION : Suppression de l'argument 'e' inutilisé
+  const handleSubmit = async () => {
     setIsSubmitting(true);
 
     try {
-      // 1. On construit le FormData MANUELLEMENT à partir de l'état React
-      // car le bouton est en dehors du tag <form> ou onSubmit n'est pas utilisé classiquement
       const dataToSend = new FormData();
 
-      // Ajout des champs simples
       Object.entries(formData).forEach(([key, value]) => {
         dataToSend.append(key, value);
       });
 
-      // S'assurer que les URLs d'images sont bien mises à jour
       dataToSend.set("photo", imageUrl);
       dataToSend.set("cityPhoto", cityImageUrl);
-      // "cityPhotoUrl" dans ton state vs "cityPhoto" dans la BDD/Action : attention au nom
-      // Dans ton action tu attends surement "cityPhoto" :
-      dataToSend.append("cityPhoto", cityImageUrl);
+      dataToSend.append("cityPhoto", cityImageUrl); // Doublon sécurité pour l'action
 
       let result;
 
       if (isEditMode && agentToEdit) {
-        // MODE ÉDITION
         result = await updateAgent(agentToEdit.id, dataToSend);
       } else {
-        // MODE CRÉATION
         result = await createAgent(dataToSend);
       }
 
       if (result?.success) {
-        // ✅ SUCCÈS
+        // ✅ CORRECTION : Utilisation de router.refresh() pour mettre à jour la liste parente
+        router.refresh();
         onClose();
         toast.success(
           isEditMode
@@ -422,7 +415,6 @@ export default function CreateAgentForm({
             : "Nouvel agent ajouté avec succès au réseau."
         );
       } else {
-        // ❌ ERREUR
         toast.error(result?.error || "Une erreur est survenue.");
         setServerError(result?.error || "Erreur serveur");
       }
@@ -506,16 +498,15 @@ export default function CreateAgentForm({
                         Sélectionner une agence...
                       </option>
                       {availableAgencies.map((agency) => (
-                        <option key={agency.id} value={agency.id}>
+                        <option
+                          key={agency.id}
+                          value={agency.id}
+                          className="bg-[#1a1a1a]"
+                        >
                           {agency.name}
                         </option>
                       ))}
                     </select>
-                    {availableAgencies.length === 0 && (
-                      <p className="text-xs text-orange-400 mt-1 flex items-center gap-1">
-                        ⚠️ Aucune agence trouvée.
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -558,8 +549,7 @@ export default function CreateAgentForm({
                       className={STYLES.input}
                       onChange={handleChange}
                       value={formData.phone}
-                      placeholder="06..."
-                      maxLength={10}
+                      placeholder="06 12 34 56 78"
                     />
                   </div>
                 </div>
@@ -591,7 +581,6 @@ export default function CreateAgentForm({
                         onClientUploadComplete={(res: { url: string }[]) => {
                           if (res && res[0]) setImageUrl(res[0].url);
                         }}
-                        // AJOUT DES ACCOLADES { } ICI :
                         onUploadError={(error: Error) => {
                           toast.error(`Erreur upload: ${error.message}`);
                         }}
@@ -603,6 +592,7 @@ export default function CreateAgentForm({
                     )}
                   </div>
                 </div>
+                {/* ✅ CORRECTION : Affichage de l'erreur serveur si elle existe */}
                 {serverError && (
                   <div className={STYLES.errorBox}>
                     <p className="text-red-500 text-sm">{serverError}</p>
@@ -611,7 +601,7 @@ export default function CreateAgentForm({
               </div>
             )}
 
-            {/* --- ETAPE 2 --- */}
+            {/* --- ETAPE 2 : SECTEURS --- */}
             {currentStep === 2 && (
               <div className={STYLES.formSpaceY}>
                 <div className="flex items-center gap-2 text-xl text-white mb-4">
@@ -679,7 +669,6 @@ export default function CreateAgentForm({
                         onClientUploadComplete={(res: { url: string }[]) => {
                           if (res && res[0]) setCityImageUrl(res[0].url);
                         }}
-                        // AJOUT DES ACCOLADES { } ICI AUSSI :
                         onUploadError={(error: Error) => {
                           toast.error(`Erreur: ${error.message}`);
                         }}
@@ -692,6 +681,7 @@ export default function CreateAgentForm({
                   </div>
                 </div>
 
+                {/* ✅ RESTAURATION DU CODE DES SECTEURS SECONDAIRES */}
                 <div className="mt-4">
                   <label className={STYLES.label}>Secteurs Secondaires</label>
                   <div className="relative">
@@ -733,7 +723,7 @@ export default function CreateAgentForm({
               </div>
             )}
 
-            {/* --- ETAPE 3 --- */}
+            {/* --- ETAPE 3 : RESEAUX --- */}
             {currentStep === 3 && (
               <div className={STYLES.formSpaceY}>
                 <div className="relative">
@@ -777,7 +767,7 @@ export default function CreateAgentForm({
               </div>
             )}
 
-            {/* --- ETAPE 4 --- */}
+            {/* --- ETAPE 4 : BIO --- */}
             {currentStep === 4 && (
               <div className={STYLES.formSpaceY}>
                 <label className={STYLES.label}>Biographie</label>
@@ -823,7 +813,7 @@ export default function CreateAgentForm({
             </button>
           ) : (
             <button
-              onClick={handleSubmit} // On appelle handleSubmit ici
+              onClick={handleSubmit}
               disabled={!validateStep(4)}
               className={STYLES.btnSubmit}
             >

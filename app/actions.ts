@@ -220,50 +220,79 @@ export async function getAgencies() {
 // --- 7. GESTION DES AGENCES ---
 
 const AgencySchema = z.object({
-  name: z.string().min(2, "Le nom de la ville est requis"),
-  address: z.string().optional().or(z.literal("")),
+  name: z.string().min(2, "Le nom est requis"),
+  // ✅ AJOUT DES NOUVEAUX CHAMPS
+  city: z.string().min(2, "La ville est requise"),
+  zipCode: z.string().min(4, "Code postal invalide"),
+  address: z.string().min(5, "L'adresse est requise"),
+  email: z.string().email("Email invalide"),
+
   phone: z.string().optional().or(z.literal("")),
-  photo: z.string().min(1, "La photo de l'agence est requise"),
+  // On rend la photo optionnelle pour l'instant si tu ne l'envoies pas encore
+  photo: z.string().optional().or(z.literal("")),
   managerId: z.string().optional().or(z.literal("")),
 });
+
 export async function createAgency(formData: FormData) {
   try {
     const rawData = {
-      name: formData.get("name"),
-      address: formData.get("address"),
-      phone: formData.get("phone"),
-      photo: formData.get("photo"),
-      managerId: formData.get("managerId"),
+      name: formData.get("name") as string,
+      city: formData.get("city") as string,
+      zipCode: formData.get("zipCode") as string,
+      address: formData.get("address") as string,
+      email: formData.get("email") as string,
+      phone: (formData.get("phone") as string) || "",
+      photo: (formData.get("photo") as string) || "",
+      managerId: (formData.get("managerId") as string) || "",
     };
 
     const validated = AgencySchema.safeParse(rawData);
 
     if (!validated.success) {
-      return { success: false, error: "Données invalides." };
+      console.error("Erreur Zod:", validated.error.flatten());
+      return {
+        success: false,
+        error: "Données invalides (champs manquants ou format incorrect).",
+      };
     }
 
     const data = validated.data;
+
+    // Vérification email unique
+    const existing = await prisma.agency.findUnique({
+      where: { email: data.email },
+    });
+
+    if (existing) {
+      return {
+        success: false,
+        error: "Cet email est déjà utilisé par une autre agence.",
+      };
+    }
 
     // Création de l'agence
     await prisma.agency.create({
       data: {
         name: data.name,
-        address: data.address || null,
+        city: data.city,
+        zipCode: data.zipCode,
+        address: data.address,
+        email: data.email,
         phone: data.phone || null,
-        photo: data.photo,
-        // Si un manager est sélectionné, on connecte la relation
+        photo: data.photo || "https://placehold.co/600x400?text=Agence", // Image par défaut si vide
+        // Liaison Responsable
         manager: data.managerId
           ? { connect: { id: data.managerId } }
           : undefined,
       },
     });
 
-    revalidatePath("/dashboard/agencies"); // On rafraîchit la future page
-    revalidatePath("/dashboard/users"); // On rafraîchit aussi la liste des agents (pour le dropdown)
+    revalidatePath("/dashboard/agencies");
+    revalidatePath("/dashboard/users");
     return { success: true };
   } catch (error) {
     console.error("Erreur createAgency:", error);
-    return { success: false, error: "Impossible de créer l'agence." };
+    return { success: false, error: "Erreur technique lors de la création." };
   }
 }
 
@@ -271,15 +300,11 @@ export async function createAgency(formData: FormData) {
 export async function deleteAgency(agencyId: string) {
   try {
     // 1. Suppression dans la base de données
-    // Note: Si tu as configuré ton Schema Prisma correctement,
-    // les agents liés seront soit détachés (null), soit supprimés selon tes règles.
-    // Par défaut ici, on supprime juste l'agence.
     await prisma.agency.delete({
       where: {
         id: agencyId,
       },
     });
-
     // 2. Rafraîchir la page des agences pour voir le changement immédiat
     revalidatePath("/dashboard/agencies");
 

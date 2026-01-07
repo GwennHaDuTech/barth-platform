@@ -27,8 +27,6 @@ model Agent {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   listings        Listing[]
-
-  // --- NOUVEAUX CHAMPS ---
   
   // 1. L'agence à laquelle l'agent appartient (Membre)
   agencyId        String?  // Optionnel pour l'instant pour ne pas bloquer les agents existants
@@ -40,21 +38,24 @@ model Agent {
 
 model Agency {
   id        String   @id @default(cuid())
-  name      String   // Correspondra à la "Ville" ou nom de l'agence (ex: "Paris", "Bordeaux")
-  photo     String?  // Photo de l'agence en arrière-plan
-  phone     String?
-  address   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // --- RELATIONS ---
+  name      String
+  
+  // --- NOUVEAUX CHAMPS À AJOUTER ---
+  email     String   @unique  // Important: @unique permet de faire findUnique() dessus
+  city      String
+  zipCode   String
+  address   String
+  
+  phone     String?
+  photo     String?   // Peut être String? (optionnel) ou String (obligatoire) selon ton choix
 
-  // Liste des agents rattachés à cette agence
+  // Relations existantes (ne pas toucher)
   agents    Agent[]  @relation("AgencyMembers")
-
-  // Le responsable de l'agence (Optionnel)
-  managerId String?  @unique
   manager   Agent?   @relation("AgencyManager", fields: [managerId], references: [id])
+  managerId String?  @unique
 }
 
 model Listing {
