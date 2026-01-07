@@ -40,18 +40,30 @@ export default function AdminPanel({ onClose }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 1. Définition stable de la fonction de chargement
-  const loadAdmins = useCallback(async () => {
-    // Note : On ne met pas setIsLoading(true) ici pour éviter la boucle infinie
-    // car cette fonction est appelée DANS le useEffect qui dépend d'elle.
+  const loadAdmins = async () => {
+    // Note: On ne met pas setIsLoading(true) ici car cette fonction sert juste à mettre à jour
     const data = await getAdmins();
     setAdmins(data as unknown as Admin[]);
     setIsLoading(false);
-  }, []);
+  };
 
-  // 2. Appel au montage du composant
+  // 2. Le useEffect gère son propre chargement initial de manière isolée
+  // Cela satisfait le linter car il n'y a aucune dépendance externe qui change
   useEffect(() => {
-    loadAdmins();
-  }, [loadAdmins]);
+    const initData = async () => {
+      try {
+        const data = await getAdmins();
+        setAdmins(data as unknown as Admin[]);
+      } catch (error) {
+        console.error("Erreur de chargement", error);
+        toast.error("Impossible de charger les administrateurs");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initData();
+  }, []); // Tableau vide = exécution unique garantie au montage
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
