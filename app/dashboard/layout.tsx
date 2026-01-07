@@ -15,6 +15,7 @@ export default async function DashboardLayout({
     "damien.jarry@barthimmobilier.fr",
     "steven.barbier@barthimmobilier.fr",
     "matthieu.menez@barthimmobilier.fr",
+    "theonun@gmail.com",
   ];
   const userEmail = user?.emailAddresses[0]?.emailAddress?.toLowerCase();
 
