@@ -41,7 +41,8 @@ interface Agent {
   tiktok: string | null;
   bio: string | null;
   agencyId: string | null;
-  listings: [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  listings: any[];
   agency?: { name: string } | null;
   createdAt: Date;
 }

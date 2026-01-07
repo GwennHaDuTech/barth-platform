@@ -122,7 +122,7 @@ export default function CreateAgencyForm({
             {/* NOM */}
             <div className="space-y-2 col-span-full">
               <label className="text-xs uppercase font-bold text-gray-500 tracking-wider">
-                Nom de l'agence
+                {`Nom de l'agence`}
               </label>
               <div className="relative">
                 <Building

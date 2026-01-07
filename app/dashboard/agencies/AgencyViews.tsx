@@ -32,6 +32,7 @@ interface AgencyData {
     firstname: string;
     lastname: string;
   } | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   agents: any[];
 }
 
@@ -114,13 +115,14 @@ export default function AgencyViews({ agencies }: Props) {
                 <AlertTriangle size={24} />
               </div>
               <h3 className="text-xl font-bold text-white mb-2">
-                Supprimer l'agence ?
+                {`Supprimer l'agence ?`}
               </h3>
               <p className="text-sm text-gray-400">
                 Cette action est{" "}
                 <span className="text-red-400 font-bold">irréversible</span>.
-                Cela supprimera l'agence <strong>{deletingAgency.name}</strong>{" "}
-                et détachera tous ses agents.
+                {`Cela supprimera l'agence`}{" "}
+                <strong>{deletingAgency.name}</strong> et détachera tous ses
+                agents.
               </p>
             </div>
 
