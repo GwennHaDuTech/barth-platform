@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import CreateAgencyButton from "./CreateAgencyButton";
-import AgencyViews from "./AgencyViews"; // <--- On importe notre nouveau composant
+import AgencyViews from "./AgencyViews";
 
 export const dynamic = "force-dynamic";
 
@@ -32,12 +32,8 @@ export default async function AgenciesPage() {
             Gérez vos points de vente physiques et digitaux.
           </p>
         </div>
-
-        {/* Le bouton "Créer" reste ici, au niveau principal */}
         <CreateAgencyButton availableAgents={agentsList} />
       </div>
-
-      {/* COMPOSANT D'AFFICHAGE (Gère la vue Carte / Liste) */}
       <AgencyViews agencies={agencies} />
     </div>
   );
