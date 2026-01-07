@@ -12,7 +12,7 @@ import {
   CheckCircle2,
   MapPin,
 } from "lucide-react";
-import CreateAgentForm from "../dashboard/CreateagentForm/CreateAgentForm";
+import CreateAgentForm from "../dashboard/CreateAgentForm/CreateAgentForm";
 
 // Définition de l'agence pour le typage
 interface AgencyOption {
@@ -133,7 +133,7 @@ export default function AgentManagementTable({
     <div className="w-full h-full overflow-y-auto custom-scrollbar relative">
       {/* MODALE D'ÉDITION */}
       {editingAgent && (
-        <div className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 z-50">
+        <div className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <CreateAgentForm
             onClose={() => setEditingAgent(null)}
             agentToEdit={editingAgent}

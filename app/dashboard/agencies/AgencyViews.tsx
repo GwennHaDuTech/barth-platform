@@ -100,7 +100,7 @@ export default function AgencyViews({ agencies }: Props) {
     <div className="flex flex-col gap-6 relative">
       {/* --- MODALE DE SUPPRESSION (SÉCURISÉE) --- */}
       {deletingAgency && (
-        <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+        <div className="fixed inset-0 z-150 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-[#0f0f0f] border border-red-500/30 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
             <button
               onClick={() => setDeletingAgency(null)}
@@ -190,7 +190,7 @@ export default function AgencyViews({ agencies }: Props) {
           {agencies.map((agency) => (
             <GlassCard
               key={agency.id}
-              className="group relative overflow-hidden p-0 flex flex-col h-[350px]"
+              className="group relative overflow-hidden p-0 flex flex-col h-87.5"
             >
               {/* --- 1. BOUTON 3 POINTS (MENU) --- */}
               <div className="absolute top-3 right-3 z-20">
@@ -234,7 +234,7 @@ export default function AgencyViews({ agencies }: Props) {
                     <Building className="text-white/20" size={32} />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent" />
                 <div className="absolute bottom-4 left-4">
                   <h3 className="text-2xl font-semibold text-white">
                     {agency.name}

@@ -171,7 +171,7 @@ export default async function AgencyPublicPage({ params }: Props) {
             <div className="w-full h-full bg-gray-900" />
           )}
           <div className="absolute inset-0 bg-black/60" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-t from-black via-transparent to-transparent" />
         </div>
 
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-10 duration-1000">

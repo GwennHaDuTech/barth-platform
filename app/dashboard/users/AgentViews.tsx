@@ -15,7 +15,7 @@ import {
   MapPin,
   Building2,
 } from "lucide-react";
-import CreateAgentForm from "../CreateagentForm/CreateAgentForm"; // Vérifie que le chemin est bon
+import CreateAgentForm from "../CreateAgentForm/CreateAgentForm"; // Vérifie que le chemin est bon
 import GlassCard from "@/components/ui/GlassCard";
 
 // Types
@@ -41,8 +41,7 @@ interface Agent {
   tiktok: string | null;
   bio: string | null;
   agencyId: string | null;
-  listings: any[];
-  // Ajout de l'objet agency récupéré dans la page
+  listings: [];
   agency?: { name: string } | null;
   createdAt: Date;
 }
@@ -116,7 +115,7 @@ export default function AgentViews({
     <div className="w-full h-full flex flex-col gap-6">
       {/* MODALE D'ÉDITION */}
       {editingAgent && (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <CreateAgentForm
             onClose={() => setEditingAgent(null)}
             agentToEdit={editingAgent}
@@ -161,7 +160,7 @@ export default function AgentViews({
             return (
               <GlassCard
                 key={agent.id}
-                className="p-0 flex flex-col overflow-hidden h-[380px] group relative"
+                className="p-0 flex flex-col overflow-hidden h-95 group relative"
               >
                 {/* Photo de couverture / Profil */}
                 <div className="relative h-48 w-full bg-white/5">
@@ -195,7 +194,7 @@ export default function AgentViews({
                 </div>
 
                 {/* Contenu */}
-                <div className="p-5 flex-1 flex flex-col justify-between bg-gradient-to-t from-[#0a0a0a] to-transparent">
+                <div className="p-5 flex-1 flex flex-col justify-between bg-linear-to-t from-[#0a0a0a] to-transparent">
                   <div>
                     <h3 className="text-xl font-medium text-white">
                       {agent.firstname}{" "}

@@ -17,7 +17,7 @@ export default function DeleteConfirmModal({
   isDeleting,
 }: DeleteModalProps) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-barth-dark border border-red-500/30 p-8 rounded-3xl max-w-md w-full shadow-[0_0_50px_rgba(239,68,68,0.1)]">
         <div className="flex flex-col items-center text-center">
           <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-6">

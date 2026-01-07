@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import GlassCard from "./ui/GlassCard";
-import CreateAgentForm from "@/app/dashboard/CreateagentForm/CreateAgentForm"; // Ajuste le chemin si besoin
+import CreateAgentForm from "@/app/dashboard/CreateAgentForm/CreateAgentForm"; // Ajuste le chemin si besoin
 
 export default function DashboardInteractions() {
   const [showAgentForm, setShowAgentForm] = useState(false);
@@ -10,7 +10,7 @@ export default function DashboardInteractions() {
   return (
     <>
       {/* LA CARTE AVEC LES BOUTONS */}
-      <GlassCard className="flex flex-col md:flex-row items-center justify-between gap-8 !py-8">
+      <GlassCard className="flex flex-col md:flex-row items-center justify-between gap-8 py-8!">
         <h1 className="text-3xl font-light text-center md:text-left">
           Créer un site pour :
         </h1>
@@ -19,7 +19,7 @@ export default function DashboardInteractions() {
           {/* Bouton Agent : Ouvre la modale au clic */}
           <button
             onClick={() => setShowAgentForm(true)}
-            className="flex-1 md:flex-none px-8 py-4 rounded-2xl bg-gradient-to-br from-barth-gold/80 to-barth-gold/40 text-barth-dark font-bold shadow-[0_0_20px_rgba(212,175,55,0.2)] transition hover:scale-[1.02] active:scale-95"
+            className="flex-1 md:flex-none px-8 py-4 rounded-2xl bg-linear-to-br from-barth-gold/80 to-barth-gold/40 text-barth-dark font-bold shadow-[0_0_20px_rgba(212,175,55,0.2)] transition hover:scale-[1.02] active:scale-95"
           >
             un agent
           </button>
