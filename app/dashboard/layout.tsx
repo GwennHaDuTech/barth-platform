@@ -3,6 +3,8 @@ import Sidebar from "@/components/Sidebar";
 import { Toaster } from "sonner";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+// ✅ Import de la vérification BDD
+import { checkAdminAccess } from "../../app/actions/auth";
 
 export default async function DashboardLayout({
   children,
@@ -10,22 +12,24 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const user = await currentUser();
-  const ALLOWED_EMAILS = [
-    "paulbroussouloux.pro@gmail.com",
-    "damien.jarry@barthimmobilier.fr",
-    "steven.barbier@barthimmobilier.fr",
-    "matthieu.menez@barthimmobilier.fr",
-    "theonun@gmail.com",
-  ];
   const userEmail = user?.emailAddresses[0]?.emailAddress?.toLowerCase();
 
-  if (!user || !userEmail || !ALLOWED_EMAILS.includes(userEmail)) {
+  // 1. Vérification basique Clerk
+  if (!user || !userEmail) {
+    redirect("/");
+  }
+
+  // 2. Vérification Base de Données (Remplace le tableau ALLOWED_EMAILS)
+  const isAdmin = await checkAdminAccess(userEmail);
+
+  if (!isAdmin) {
+    // Redirection si l'email n'est pas dans la table Admin
     redirect("/");
   }
 
   return (
     <div className="relative flex h-screen w-full overflow-hidden bg-barth-dark">
-      {/* --- COUCHE 0 : FOND --- */}
+      {/* ... Le reste de ton layout reste strictement identique ... */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat pointer-events-none"
         style={{ backgroundImage: "url('/background.jpg')" }}
@@ -35,14 +39,11 @@ export default async function DashboardLayout({
 
       <Toaster position="bottom-right" theme="dark" richColors />
 
-      {/* --- COUCHE 20 : SIDEBAR GAUCHE --- */}
       <div className="relative z-20 h-full shrink-0">
         <Sidebar />
       </div>
 
-      {/* --- COUCHE 10 : CONTENU PRINCIPAL --- */}
       <main className="relative z-10 flex-1 h-full overflow-hidden">
-        {/* On laisse juste les children (la page gère le reste) */}
         <div className="h-full w-full overflow-y-auto custom-scrollbar">
           {children}
         </div>

@@ -66,3 +66,22 @@ model Listing {
   agentId String
   agent   Agent  @relation(fields: [agentId], references: [id])
 }
+
+// NOUVEAU MODÈLE ADMIN
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  firstname String?
+  lastname  String?
+  role      AdminRole @default(ADMIN)
+  
+  lastLoginAt DateTime? // Pour la traçabilité
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ENUM POUR LES RÔLES
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+}

@@ -1,20 +1,24 @@
-// components/Sidebar.tsx
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, Building2, Settings, LogOut } from "lucide-react";
-import { useClerk, useUser } from "@clerk/nextjs"; // Imports Clerk
+import { Home, Users, Building2, Settings } from "lucide-react"; // LogOut n'était pas utilisé dans le JSX, je l'ai laissé au cas où
+import { useClerk, useUser } from "@clerk/nextjs";
 import styles from "./Sidebar.module.css";
+// ✅ IMPORT DU PANNEAU ADMIN
+import AdminPanel from "@/components/AdminPanel";
 
 const Sidebar = () => {
   const pathname = usePathname();
-  // Récupère les infos de l'utilisateur connecté et la fonction de déconnexion
   const { user } = useUser();
   const { signOut } = useClerk();
 
+  // ✅ ÉTAT POUR LA MODALE
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+
   const handleLogout = () => {
-    signOut({ redirectUrl: "/" }); // Redirige vers l'accueil après déconnexion
+    signOut({ redirectUrl: "/" });
   };
 
   const isActive = (path: string) => {
@@ -24,103 +28,105 @@ const Sidebar = () => {
   };
 
   return (
-    <div className={styles.sidebarContainer}>
-      <aside className={styles.sidebar}>
-        {/* --- HEADER : LOGOUT + USER INFO --- */}
-        <div className={styles.header}>
-          <button
-            onClick={handleLogout}
-            className={styles.logoutBtn}
-            title="Se déconnecter"
-          >
-            {/* Si l'utilisateur a une image (avatar Google/Clerk), on l'affiche */}
-            {user?.imageUrl ? (
-              <img
-                src={user.imageUrl}
-                alt="Profile"
-                className="w-full h-full rounded-full object-cover"
-              />
-            ) : (
-              // Sinon on affiche les initiales
-              <span className={styles.initials}>
-                {user?.firstName ? user.firstName[0].toUpperCase() : "A"}
+    <>
+      {/* ✅ AFFICHAGE CONDITIONNEL DU PANNEAU */}
+      {isAdminPanelOpen && (
+        <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />
+      )}
+
+      <div className={styles.sidebarContainer}>
+        <aside className={styles.sidebar}>
+          {/* --- HEADER : LOGOUT + USER INFO --- */}
+          <div className={styles.header}>
+            <button
+              onClick={handleLogout}
+              className={styles.logoutBtn}
+              title="Se déconnecter"
+            >
+              {user?.imageUrl ? (
+                <img
+                  src={user.imageUrl}
+                  alt="Profile"
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                <span className={styles.initials}>
+                  {user?.firstName ? user.firstName[0].toUpperCase() : "A"}
+                </span>
+              )}
+            </button>
+
+            <div className={styles.headerText}>
+              <p className="text-sm font-bold text-white leading-none">
+                {user?.firstName || "Admin"}
+              </p>
+              <p className="text-xs text-barth-gold leading-none mt-1">
+                Déconnexion
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.separator} />
+
+          {/* --- NAVIGATION --- */}
+          <nav className={styles.nav}>
+            <Link
+              href="/dashboard"
+              className={`${styles.navLink} ${
+                isActive("/dashboard") ? styles.active : ""
+              }`}
+            >
+              <span className={styles.navIcon}>
+                <Home size={22} />
               </span>
-            )}
-          </button>
+              <span className={styles.linkText}>Accueil</span>
+            </Link>
 
-          <div className={styles.headerText}>
-            {/* Affiche le vrai prénom */}
-            <p className="text-sm font-bold text-white leading-none">
-              {user?.firstName || "Admin"}
-            </p>
-            <p className="text-xs text-barth-gold leading-none mt-1">
-              Déconnexion
-            </p>
+            <Link
+              href="/dashboard/users"
+              className={`${styles.navLink} ${
+                isActive("/dashboard/users") ? styles.active : ""
+              }`}
+            >
+              <span className={styles.navIcon}>
+                <Users size={22} />
+              </span>
+              <span className={styles.linkText}>Agents</span>
+            </Link>
+
+            <Link
+              href="/dashboard/agencies"
+              className={`${styles.navLink} ${
+                isActive("/dashboard/agencies") ? styles.active : ""
+              }`}
+            >
+              <span className={styles.navIcon}>
+                <Building2 size={22} />
+              </span>
+              <span className={styles.linkText}>Agences</span>
+            </Link>
+
+            {/* ✅ BOUTON RÉGLAGES (Au lieu de Link) */}
+            <button
+              onClick={() => setIsAdminPanelOpen(true)}
+              className={`${styles.navLink} w-full text-left`} // Ajout de w-full text-left pour garder le style bouton
+            >
+              <span className={styles.navIcon}>
+                <Settings size={22} />
+              </span>
+              <span className={styles.linkText}>Réglages</span>
+            </button>
+          </nav>
+
+          {/* --- FOOTER --- */}
+          <div className={styles.footerLogo}>
+            <div className="text-[0.5rem] uppercase tracking-widest text-barth-gold">
+              BTH
+            </div>
           </div>
-        </div>
-
-        <div className={styles.separator} />
-
-        {/* --- NAVIGATION (Reste identique) --- */}
-        <nav className={styles.nav}>
-          <Link
-            href="/dashboard"
-            className={`${styles.navLink} ${
-              isActive("/dashboard") ? styles.active : ""
-            }`}
-          >
-            <span className={styles.navIcon}>
-              <Home size={22} />
-            </span>
-            <span className={styles.linkText}>Accueil</span>
-          </Link>
-
-          <Link
-            href="/dashboard/users"
-            className={`${styles.navLink} ${
-              isActive("/dashboard/users") ? styles.active : ""
-            }`}
-          >
-            <span className={styles.navIcon}>
-              <Users size={22} />
-            </span>
-            <span className={styles.linkText}>Agents</span>
-          </Link>
-
-          <Link
-            href="/dashboard/agencies"
-            className={`${styles.navLink} ${
-              isActive("/dashboard/agencies") ? styles.active : ""
-            }`}
-          >
-            {/* Note: Building2 n'était pas importé dans ton snippet précédent, assure-toi de l'avoir */}
-            <span className={styles.navIcon}>
-              <Building2 size={22} />
-            </span>
-            <span className={styles.linkText}>Agences</span>
-          </Link>
-
-          <Link
-            href="/dashboard/settings"
-            className={`${styles.navLink} ${
-              isActive("/dashboard/settings") ? styles.active : ""
-            }`}
-          >
-            <span className={styles.navIcon}>
-              <Settings size={22} />
-            </span>
-            <span className={styles.linkText}>Réglages</span>
-          </Link>
-        </nav>
-
-        {/* --- FOOTER --- */}
-        <div className={styles.footerLogo}>
-          <div className="text-[0.5rem] uppercase tracking-widest text-barth-gold">
-            BTH
-          </div>
-        </div>
-      </aside>
-    </div>
+        </aside>
+      </div>
+    </>
   );
 };
 export default Sidebar;
