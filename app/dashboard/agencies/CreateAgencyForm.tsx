@@ -1,373 +1,246 @@
 "use client";
 
-import { useState } from "react";
-import { UploadButton } from "app/utils/uploadthing";
-import { X, Loader2, MapPin, Phone, Building2, User } from "lucide-react";
-import { createAgency } from "app/actions";
+import { useState } from "react"; // <--- Indispensable pour isLoading
+import { toast } from "sonner"; // <--- Pour les notifications
+import { X, Upload, MapPin, Phone, User, Building } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { createAgency } from "@/app/actions"; // Assure-toi que le chemin est bon
 
-const toast = {
-  error: (title: string, obj?: { description?: string }) =>
-    alert(`${title}: ${obj?.description || ""}`),
-  success: (title: string, obj?: { description?: string }) => alert(title),
-};
-
-const STYLES = {
-  container:
-    "relative w-full max-w-xl bg-[#0f0f0f] border border-white/10 rounded-3xl shadow-2xl flex flex-col p-6 max-h-[90vh] overflow-y-auto custom-scrollbar",
-  closeButton:
-    "absolute top-4 right-4 text-gray-400 hover:text-white transition p-2 rounded-full hover:bg-white/10 z-10",
-  title: "text-2xl font-light text-white mb-6",
-  goldText: "font-semibold text-barth-gold",
-  formSpaceY: "space-y-5",
-  label: "block text-sm font-medium text-gray-300 mb-1",
-  input:
-    "w-full bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 outline-none transition-all p-3 focus:border-barth-gold/50 focus:bg-white/10 focus:ring-1 focus:ring-barth-gold/20",
-  select:
-    "w-full bg-[#1a1a1a] border border-white/10 rounded-xl text-white outline-none transition-all p-3 focus:border-barth-gold/50 focus:bg-white/10 appearance-none",
-  uploadBox:
-    "mt-1 border-2 border-dashed border-white/20 rounded-xl p-6 flex flex-col items-center justify-center text-center transition-all hover:bg-white/5 hover:border-barth-gold/30",
-  btnSubmit:
-    "w-full bg-gradient-to-r from-barth-gold to-[#bf9b30] text-barth-dark font-bold px-6 py-3 rounded-xl hover:shadow-[0_0_20px_rgba(191,155,48,0.3)] transition-all disabled:opacity-50 mt-6",
-  // Styles pour les listes déroulantes
-  suggestionsList:
-    "absolute z-50 w-full mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl max-h-48 overflow-y-auto custom-scrollbar",
-  suggestionItem:
-    "p-3 text-sm text-white hover:bg-white/10 cursor-pointer transition border-b border-white/5 last:border-0",
-};
-
-interface AgentOption {
-  id: string;
-  firstname: string;
-  lastname: string;
-}
-
+// Définition des paramètres que le formulaire accepte
 interface Props {
-  onClose: () => void;
-  availableAgents: AgentOption[];
+  availableAgents: {
+    id: string;
+    firstname: string;
+    lastname: string;
+  }[];
+  closeModal: () => void; // <--- La fonction pour fermer la modale
 }
 
-// Interfaces pour les APIs
-interface GeoCity {
-  nom: string;
-  codesPostaux: string[];
-}
+export default function CreateAgencyForm({
+  availableAgents,
+  closeModal,
+}: Props) {
+  // --- 1. Gestion des états ---
+  const [isLoading, setIsLoading] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
 
-interface GeoAddress {
-  properties: {
-    label: string; // Adresse complète (ex: "12 Rue de la Paix 75000 Paris")
-    name: string; // Numéro + Rue (ex: "12 Rue de la Paix")
-    city: string;
-    postcode: string;
+  // --- 2. Gestion de l'upload d'image (Prévisualisation) ---
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const objectUrl = URL.createObjectURL(file);
+      setPreview(objectUrl);
+    }
   };
-}
 
-export default function CreateAgencyForm({ onClose, availableAgents }: Props) {
-  const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // --- 3. La fonction de soumission corrigée ---
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault(); // Empêche le rechargement de page classique
+    setIsLoading(true);
 
-  // États du formulaire
-  const [name, setName] = useState(""); // Ville
-  const [address, setAddress] = useState(""); // Adresse postale
-  const [phone, setPhone] = useState("");
-  const [managerId, setManagerId] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
+    try {
+      // On récupère les données du formulaire
+      const formData = new FormData(e.currentTarget);
 
-  // États pour l'autocomplétion
-  const [citySuggestions, setCitySuggestions] = useState<GeoCity[]>([]);
-  const [addressSuggestions, setAddressSuggestions] = useState<GeoAddress[]>(
-    []
-  );
+      // Appel au serveur
+      const result = await createAgency(formData);
 
-  // --- 1. GESTION VILLE (API Gouv) ---
-  const handleCityChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setName(value);
-
-    if (value.length > 2) {
-      try {
-        const res = await fetch(
-          `https://geo.api.gouv.fr/communes?nom=${value}&fields=nom,codesPostaux&boost=population&limit=5`
-        );
-        const data = await res.json();
-        setCitySuggestions(data);
-      } catch (err) {
-        console.error(err);
+      if (result?.success) {
+        toast.success("Nouvelle agence créée avec succès !");
+        closeModal(); // On utilise la prop pour fermer
+      } else {
+        toast.error(result?.error || "Erreur lors de la création de l'agence.");
       }
-    } else {
-      setCitySuggestions([]);
-    }
-  };
-
-  const selectCity = (city: GeoCity) => {
-    setName(city.nom);
-    setCitySuggestions([]);
-  };
-
-  // --- 2. GESTION ADRESSE (API Adresse BAN) ---
-  const handleAddressChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const value = e.target.value;
-    setAddress(value);
-
-    if (value.length > 3) {
-      try {
-        // Recherche d'adresse via l'API nationale
-        const res = await fetch(
-          `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(
-            value
-          )}&limit=5`
-        );
-        const data = await res.json();
-        // L'API renvoie un objet { features: [...] }, on garde les features
-        setAddressSuggestions(data.features || []);
-      } catch (err) {
-        console.error(err);
-      }
-    } else {
-      setAddressSuggestions([]);
-    }
-  };
-
-  const selectAddress = (item: GeoAddress) => {
-    // On prend le label complet (ex: "8 Boulevard du Port 80000 Amiens")
-    setAddress(item.properties.label);
-
-    // Bonus : Si la ville n'était pas remplie, on la remplit automatiquement
-    if (!name) {
-      setName(item.properties.city);
-    }
-    setAddressSuggestions([]);
-  };
-
-  // --- 3. GESTION TÉLÉPHONE (Chiffres uniquement) ---
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Ne garde que les chiffres
-    const numericValue = e.target.value.replace(/\D/g, "");
-    // Limite à 10 caractères
-    if (numericValue.length <= 10) {
-      setPhone(numericValue);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !photoUrl) {
-      toast.error("Incomplet", {
-        description: "Le nom (ville) et la photo sont obligatoires.",
-      });
-      return;
-    }
-    // Validation longueur téléphone
-    if (phone && phone.length !== 10) {
-      toast.error("Format invalide", {
-        description: "Le numéro de téléphone doit comporter 10 chiffres.",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("address", address);
-    formData.append("phone", phone);
-    formData.append("photo", photoUrl);
-    formData.append("managerId", managerId);
-
-    const result = await createAgency(formData);
-
-    if (result.success) {
-      toast.success("Agence créée avec succès ! 🏢");
-      router.refresh();
-      onClose();
-    } else {
-      toast.error("Erreur", { description: result.error });
-      setIsSubmitting(false);
+    } catch (error) {
+      console.error(error);
+      toast.error("Une erreur inattendue est survenue.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className={STYLES.container}>
-      <button onClick={onClose} className={STYLES.closeButton}>
-        <X size={24} />
-      </button>
-
-      <div>
-        <h2 className={STYLES.title}>
-          Nouvelle <span className={STYLES.goldText}>Agence</span>
-        </h2>
-      </div>
-
-      <form onSubmit={handleSubmit} className={STYLES.formSpaceY}>
-        {/* VILLE (NOM) + AUTOCOMPLETE */}
-        <div className="relative">
-          <label className={STYLES.label}>Ville de l'agence</label>
-          <div className="relative">
-            <Building2
-              className="absolute left-3 top-3 text-gray-500"
-              size={18}
-            />
-            <input
-              className={`${STYLES.input} pl-10`}
-              placeholder="Rechercher une ville..."
-              value={name}
-              onChange={handleCityChange}
-              autoComplete="off"
-            />
-          </div>
-          {/* Liste déroulante Ville */}
-          {citySuggestions.length > 0 && (
-            <div className={STYLES.suggestionsList}>
-              {citySuggestions.map((c, i) => (
-                <div
-                  key={i}
-                  className={STYLES.suggestionItem}
-                  onClick={() => selectCity(c)}
-                >
-                  <span className="font-medium text-white">{c.nom}</span>
-                  <span className="text-gray-500 text-xs ml-2">
-                    ({c.codesPostaux[0]})
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* PHOTO */}
+    <div className="bg-[#0f0f0f] border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
+      {/* HEADER */}
+      <div className="p-6 border-b border-white/10 flex justify-between items-center bg-[#0a0a0a]">
         <div>
-          <label className={STYLES.label}>Photo de l'agence</label>
-          <div className={STYLES.uploadBox}>
-            {photoUrl ? (
-              <div className="relative w-full h-40 rounded-lg overflow-hidden group">
-                <Image
-                  src={photoUrl}
-                  alt="Agence"
-                  fill
-                  className="object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => setPhotoUrl("")}
-                  className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-white font-medium"
-                >
-                  Changer la photo
-                </button>
-              </div>
-            ) : (
-              <UploadButton
-                endpoint="imageUploader"
-                onClientUploadComplete={(res) => {
-                  if (res && res[0]) setPhotoUrl(res[0].url);
-                }}
-                onUploadError={(error: Error) =>
-                  alert(`Erreur: ${error.message}`)
-                }
-                appearance={{
-                  button:
-                    "bg-barth-gold text-barth-dark text-sm px-4 py-2 rounded-full",
-                }}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* RESPONSABLE */}
-        <div>
-          <label className={STYLES.label}>Responsable (Optionnel)</label>
-          <div className="relative">
-            <User className="absolute left-3 top-3 text-gray-500" size={18} />
-            <select
-              className={`${STYLES.select} pl-10`}
-              value={managerId}
-              onChange={(e) => setManagerId(e.target.value)}
-            >
-              <option value="">-- Sélectionner un responsable --</option>
-              {availableAgents.map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.firstname} {agent.lastname}
-                </option>
-              ))}
-            </select>
-          </div>
+          <h2 className="text-xl font-light text-white">Nouvelle Agence</h2>
           <p className="text-xs text-gray-500 mt-1">
-            Liste issue des agents existants.
+            Ajoutez un nouveau point de vente.
           </p>
         </div>
-
-        {/* ADRESSE & TELEPHONE */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* ADRESSE + AUTOCOMPLETE */}
-          <div className="relative">
-            <label className={STYLES.label}>Adresse Postale</label>
-            <div className="relative">
-              <MapPin
-                className="absolute left-3 top-3 text-gray-500"
-                size={18}
-              />
-              <input
-                className={`${STYLES.input} pl-10`}
-                placeholder="Tapez l'adresse..."
-                value={address}
-                onChange={handleAddressChange}
-                autoComplete="off"
-              />
-            </div>
-            {/* Liste déroulante Adresse */}
-            {addressSuggestions.length > 0 && (
-              <div className={STYLES.suggestionsList}>
-                {addressSuggestions.map((item, i) => (
-                  <div
-                    key={i}
-                    className={STYLES.suggestionItem}
-                    onClick={() => selectAddress(item)}
-                  >
-                    <div className="text-white truncate">
-                      {item.properties.label}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* TELEPHONE (CHIFFRES UNIQUEMENT) */}
-          <div>
-            <label className={STYLES.label}>Téléphone Fixe</label>
-            <div className="relative">
-              <Phone
-                className="absolute left-3 top-3 text-gray-500"
-                size={18}
-              />
-              <input
-                className={`${STYLES.input} pl-10`}
-                placeholder="0123456789"
-                value={phone}
-                onChange={handlePhoneChange} // Nouvelle fonction de gestion
-                maxLength={10}
-                type="tel" // Aide les claviers mobiles
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* BOUTON SUBMIT */}
         <button
-          type="submit"
-          disabled={isSubmitting}
-          className={STYLES.btnSubmit}
+          onClick={closeModal}
+          type="button"
+          className="p-2 hover:bg-white/10 rounded-full transition text-gray-400 hover:text-white"
         >
-          {isSubmitting ? (
-            <span className="flex items-center justify-center gap-2">
-              <Loader2 className="animate-spin" /> Création...
-            </span>
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* FORMULAIRE SCROLLABLE */}
+      <div className="overflow-y-auto p-6 custom-scrollbar">
+        <form id="agency-form" onSubmit={handleSubmit} className="space-y-6">
+          {/* UPLOAD PHOTO */}
+          <div className="flex justify-center">
+            <div className="relative group cursor-pointer">
+              <div
+                className={`w-full h-40 md:w-96 rounded-xl overflow-hidden border-2 border-dashed flex items-center justify-center transition-all ${
+                  preview
+                    ? "border-barth-gold/50 bg-black"
+                    : "border-white/10 bg-white/5 group-hover:bg-white/10 group-hover:border-white/20"
+                }`}
+              >
+                {preview ? (
+                  <Image
+                    src={preview}
+                    alt="Aperçu"
+                    width={400}
+                    height={200}
+                    className="object-cover w-full h-full"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center text-gray-500 group-hover:text-gray-300">
+                    <Upload size={32} className="mb-2" />
+                    <span className="text-xs uppercase font-bold tracking-wider">
+                      Ajouter une photo
+                    </span>
+                  </div>
+                )}
+              </div>
+              <input
+                type="file"
+                name="photo"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* NOM */}
+            <div className="space-y-2 col-span-full">
+              <label className="text-xs uppercase font-bold text-gray-500 tracking-wider">
+                Nom de l'agence
+              </label>
+              <div className="relative">
+                <Building
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  size={16}
+                />
+                <input
+                  required
+                  name="name"
+                  placeholder="Ex: Agence de Rennes"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white focus:border-barth-gold outline-none transition placeholder-gray-600"
+                />
+              </div>
+            </div>
+
+            {/* VILLE / ADRESSE */}
+            <div className="space-y-2 col-span-full">
+              <label className="text-xs uppercase font-bold text-gray-500 tracking-wider">
+                Adresse complète
+              </label>
+              <div className="relative">
+                <MapPin
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  size={16}
+                />
+                <input
+                  name="address"
+                  placeholder="Ex: 12 Rue de la Paix, 75000 Paris"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white focus:border-barth-gold outline-none transition placeholder-gray-600"
+                />
+              </div>
+            </div>
+
+            {/* TÉLÉPHONE */}
+            <div className="space-y-2">
+              <label className="text-xs uppercase font-bold text-gray-500 tracking-wider">
+                Téléphone
+              </label>
+              <div className="relative">
+                <Phone
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  size={16}
+                />
+                <input
+                  name="phone"
+                  placeholder="01 23 45 67 89"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white focus:border-barth-gold outline-none transition placeholder-gray-600"
+                />
+              </div>
+            </div>
+
+            {/* RESPONSABLE (SELECT) */}
+            <div className="space-y-2">
+              <label className="text-xs uppercase font-bold text-gray-500 tracking-wider">
+                Responsable
+              </label>
+              <div className="relative">
+                <User
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  size={16}
+                />
+                <select
+                  name="managerId"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white focus:border-barth-gold outline-none transition appearance-none cursor-pointer"
+                  defaultValue=""
+                >
+                  <option
+                    value=""
+                    disabled
+                    className="bg-[#1a1a1a] text-gray-500"
+                  >
+                    Choisir un agent...
+                  </option>
+                  <option value="" className="bg-[#1a1a1a] text-gray-400">
+                    -- Aucun responsable --
+                  </option>
+                  {availableAgents.map((agent) => (
+                    <option
+                      key={agent.id}
+                      value={agent.id}
+                      className="bg-[#1a1a1a]"
+                    >
+                      {agent.firstname} {agent.lastname}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      {/* FOOTER ACTIONS */}
+      <div className="p-6 border-t border-white/10 bg-[#0a0a0a] flex justify-end gap-3">
+        <button
+          onClick={closeModal}
+          type="button"
+          disabled={isLoading}
+          className="px-5 py-2.5 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 transition font-medium disabled:opacity-50"
+        >
+          Annuler
+        </button>
+        <button
+          form="agency-form" // Relie ce bouton au formulaire via l'ID
+          type="submit"
+          disabled={isLoading}
+          className="bg-barth-gold text-barth-dark px-6 py-2.5 rounded-xl font-medium hover:bg-white transition shadow-lg shadow-barth-gold/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {isLoading ? (
+            <>
+              <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />{" "}
+              Création...
+            </>
           ) : (
             "Créer l'agence"
           )}
         </button>
-      </form>
+      </div>
     </div>
   );
 }

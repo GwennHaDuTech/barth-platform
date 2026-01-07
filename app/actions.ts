@@ -267,18 +267,6 @@ export async function createAgency(formData: FormData) {
   }
 }
 
-export async function deleteAgency(id: string) {
-  try {
-    await prisma.agency.delete({
-      where: { id },
-    });
-    revalidatePath("/dashboard/agencies");
-    return { success: true };
-  } catch (error) {
-    console.error("Erreur deleteAgency:", error);
-    return { success: false, error: "Impossible de supprimer l'agence." };
-  }
-}
 // --- SUPPRESSION D'AGENCE ---
 export async function deleteAgency(agencyId: string) {
   try {

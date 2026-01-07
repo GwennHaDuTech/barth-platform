@@ -1,9 +1,10 @@
 "use client";
-// FIX: Force update Vercel types
+
 import { useState, useEffect } from "react";
 // Assure-toi que ce chemin est bon pour UploadThing
 import { UploadButton } from "app/utils/uploadthing";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner"; // <--- ON UTILISE LA VRAIE LIBRAIRIE ICI
 import {
   X,
   Loader2,
@@ -11,18 +12,14 @@ import {
   User,
   Instagram,
   Linkedin,
-  Building2, // <--- NOUVELLE ICONE
+  Building2,
 } from "lucide-react";
-// Import actions
-import { createAgent, updateAgent, checkAgentDuplication } from "app/actions";
 import Image from "next/image";
 
-// Petit helper pour les notifications
-const toast = {
-  error: (title: string, obj?: { description?: string }) =>
-    alert(`${title}: ${obj?.description || ""}`),
-  success: (title: string, obj?: { description?: string }) => alert(title),
-};
+// Import actions
+import { createAgent, updateAgent, checkAgentDuplication } from "@/app/actions";
+
+// ON A SUPPRIMÉ L'ANCIEN OBJET "const toast = ..." QUI CREAIT LE CONFLIT
 
 const STYLES = {
   container:
@@ -38,7 +35,6 @@ const STYLES = {
   label: "block text-sm font-medium text-gray-300 mb-1",
   input:
     "w-full bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 outline-none transition-all p-2.5 focus:border-barth-gold/50 focus:bg-white/10 focus:ring-1 focus:ring-barth-gold/20",
-  // Style spécifique pour le Select pour qu'il ressemble aux inputs
   select:
     "w-full bg-[#1a1a1a] border border-white/10 rounded-xl text-white outline-none transition-all p-2.5 focus:border-barth-gold/50 focus:bg-white/10 focus:ring-1 focus:ring-barth-gold/20 appearance-none",
   inputError: "border-red-500/50 focus:border-red-500 focus:ring-red-500/20",
@@ -81,7 +77,7 @@ interface AgentFormData {
   linkedin: string;
   tiktok: string;
   bio: string;
-  agencyId: string; // <--- AJOUTÉ
+  agencyId: string;
 }
 
 interface GeoCity {
@@ -94,7 +90,6 @@ interface SelectedCity {
   zip: string;
 }
 
-// Simple interface pour les agences dans la liste
 interface AgencyOption {
   id: string;
   name: string;
@@ -105,11 +100,9 @@ interface AgentData {
   firstname: string;
   lastname: string;
   email: string;
-
   phone: string | null;
   photo: string | null;
   city: string | null;
-
   zipCode?: string | null;
   cityPhoto?: string | null;
   secondarySector?: string | null;
@@ -117,13 +110,13 @@ interface AgentData {
   linkedin?: string | null;
   tiktok?: string | null;
   bio?: string | null;
-  agencyId?: string | null; // <--- AJOUTÉ
+  agencyId?: string | null;
 }
 
 interface Props {
   onClose: () => void;
-  agentToEdit?: AgentData;
-  availableAgencies?: AgencyOption[]; // <--- AJOUTÉ (Liste des agences passée par le parent)
+  agentToEdit?: AgentData | null; // null possible
+  availableAgencies?: AgencyOption[];
 }
 
 const cleanString = (str: string) => {
@@ -146,7 +139,7 @@ const loadingMessages = [
 export default function CreateAgentForm({
   onClose,
   agentToEdit,
-  availableAgencies = [], // Valeur par défaut vide
+  availableAgencies = [],
 }: Props) {
   const router = useRouter();
   const isEditMode = !!agentToEdit;
@@ -170,7 +163,7 @@ export default function CreateAgentForm({
         linkedin: agentToEdit.linkedin || "",
         tiktok: agentToEdit.tiktok || "",
         bio: agentToEdit.bio || "",
-        agencyId: agentToEdit.agencyId || "", // <--- AJOUTÉ
+        agencyId: agentToEdit.agencyId || "",
       };
     }
     return {
@@ -187,7 +180,7 @@ export default function CreateAgentForm({
       linkedin: "",
       tiktok: "",
       bio: "",
-      agencyId: "", // <--- AJOUTÉ
+      agencyId: "",
     };
   });
 
@@ -211,12 +204,11 @@ export default function CreateAgentForm({
   const [secondaryCitiesList, setSecondaryCitiesList] = useState<
     SelectedCity[]
   >(() => {
-    if (agentToEdit?.secondarySector) {
-      return []; // Logique simplifiée pour l'exemple
-    }
+    // Si on voulait parser le secteur secondaire existant, ce serait ici
     return [];
   });
 
+  // Gestion de l'animation de chargement
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isSubmitting) {
@@ -229,6 +221,7 @@ export default function CreateAgentForm({
     return () => clearInterval(interval);
   }, [isSubmitting]);
 
+  // --- LOGIQUE API GEO ---
   const searchApiGeo = async (query: string): Promise<GeoCity[]> => {
     if (query.length < 3) return [];
     try {
@@ -306,7 +299,7 @@ export default function CreateAgentForm({
     const d = formData;
     switch (step) {
       case 1:
-        // On rend l'agence obligatoire ici
+        // Nom, Prénom, Tel, Photo, Agence obligatoires
         return !!(
           d.firstname &&
           d.lastname &&
@@ -317,7 +310,7 @@ export default function CreateAgentForm({
       case 2:
         return !!(d.city && d.zipCode && cityImageUrl);
       case 3:
-        return true;
+        return true; // Réseaux sociaux optionnels
       case 4:
         return d.bio.length > 20;
       default:
@@ -335,11 +328,12 @@ export default function CreateAgentForm({
       if (currentStep === 2 && !cityImageUrl)
         errorMsg = "Photo de ville manquante.";
 
-      toast.error("Incomplet", { description: errorMsg });
+      toast.error(errorMsg);
       return;
     }
     setServerError(null);
 
+    // Vérification duplication nom/prénom (seulement en création)
     if (currentStep === 1 && !isEditMode) {
       setIsChecking(true);
       try {
@@ -349,6 +343,7 @@ export default function CreateAgentForm({
         );
         if (isTaken) {
           setServerError("Un agent avec ce nom semble déjà exister.");
+          toast.error("Un agent avec ce nom existe déjà.");
           setIsChecking(false);
           return;
         }
@@ -372,6 +367,7 @@ export default function CreateAgentForm({
     setServerError(null);
     setFormData((prev) => {
       const newData = { ...prev, [name]: value };
+      // Auto-génération de l'email en mode création
       if (!isEditMode && (name === "firstname" || name === "lastname")) {
         const fName = cleanString(newData.firstname);
         const lName = cleanString(newData.lastname);
@@ -382,45 +378,58 @@ export default function CreateAgentForm({
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateStep(4)) return;
+  // --- FONCTION DE SOUMISSION CORRIGÉE ---
+  const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Note : On utilise onClick sur le bouton, donc pas de e.preventDefault() nécessaire
+    // sauf si le bouton est dans <form> sans type="button".
+    // Ici le bouton est hors du <form> dans ton design, donc ça va.
+
     setIsSubmitting(true);
 
     try {
+      // 1. On construit le FormData MANUELLEMENT à partir de l'état React
+      // car le bouton est en dehors du tag <form> ou onSubmit n'est pas utilisé classiquement
       const dataToSend = new FormData();
+
+      // Ajout des champs simples
       Object.entries(formData).forEach(([key, value]) => {
-        if (key !== "photo" && key !== "cityPhotoUrl") {
-          dataToSend.append(key, value);
-        }
+        dataToSend.append(key, value);
       });
-      dataToSend.append("photo", imageUrl);
-      dataToSend.append("cityPhotoUrl", cityImageUrl);
-      // agencyId est déjà dans le formData, donc il sera ajouté par la boucle au-dessus
+
+      // S'assurer que les URLs d'images sont bien mises à jour
+      dataToSend.set("photo", imageUrl);
+      dataToSend.set("cityPhoto", cityImageUrl);
+      // "cityPhotoUrl" dans ton state vs "cityPhoto" dans la BDD/Action : attention au nom
+      // Dans ton action tu attends surement "cityPhoto" :
+      dataToSend.append("cityPhoto", cityImageUrl);
 
       let result;
+
       if (isEditMode && agentToEdit) {
+        // MODE ÉDITION
         result = await updateAgent(agentToEdit.id, dataToSend);
       } else {
+        // MODE CRÉATION
         result = await createAgent(dataToSend);
       }
 
-      if (result && !result.success) {
-        setServerError(result.error || "Erreur serveur.");
-        setIsSubmitting(false);
-        toast.error("Oups", { description: result.error });
-        return;
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      toast.success(isEditMode ? "Site mis à jour ! 🚀" : "Site créé ! ✨");
-      router.refresh();
-      setTimeout(() => {
+      if (result?.success) {
+        // ✅ SUCCÈS
         onClose();
-      }, 500);
+        toast.success(
+          isEditMode
+            ? `Le profil de ${formData.firstname} a été mis à jour !`
+            : "Nouvel agent ajouté avec succès au réseau."
+        );
+      } else {
+        // ❌ ERREUR
+        toast.error(result?.error || "Une erreur est survenue.");
+        setServerError(result?.error || "Erreur serveur");
+      }
     } catch (error) {
       console.error(error);
-      setServerError("Erreur technique inattendue.");
+      toast.error("Erreur technique inattendue.");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -469,7 +478,6 @@ export default function CreateAgentForm({
           </div>
         ) : (
           <form
-            onSubmit={handleSubmit}
             className={`${STYLES.formSpaceY} animate-in fade-in slide-in-from-right-4 duration-300`}
           >
             {/* --- ETAPE 1 : IDENTITÉ --- */}
@@ -479,7 +487,7 @@ export default function CreateAgentForm({
                   <User className="text-barth-gold" /> <span>Identité</span>
                 </div>
 
-                {/* --- NOUVEAU SELECT AGENCE --- */}
+                {/* SELECT AGENCE */}
                 <div>
                   <label className={STYLES.label}>
                     <div className="flex items-center gap-2">
@@ -505,8 +513,7 @@ export default function CreateAgentForm({
                     </select>
                     {availableAgencies.length === 0 && (
                       <p className="text-xs text-orange-400 mt-1 flex items-center gap-1">
-                        ⚠️ Aucune agence trouvée. Veuillez d'abord créer une
-                        agence.
+                        ⚠️ Aucune agence trouvée.
                       </p>
                     )}
                   </div>
@@ -581,12 +588,13 @@ export default function CreateAgentForm({
                     ) : (
                       <UploadButton
                         endpoint="imageUploader"
-                        onClientUploadComplete={(res) => {
+                        onClientUploadComplete={(res: { url: string }[]) => {
                           if (res && res[0]) setImageUrl(res[0].url);
                         }}
-                        onUploadError={(error: Error) =>
-                          alert(`Erreur: ${error.message}`)
-                        }
+                        // AJOUT DES ACCOLADES { } ICI :
+                        onUploadError={(error: Error) => {
+                          toast.error(`Erreur upload: ${error.message}`);
+                        }}
                         appearance={{
                           button:
                             "bg-barth-gold text-barth-dark text-sm px-4 py-2 rounded-full",
@@ -668,12 +676,13 @@ export default function CreateAgentForm({
                     ) : (
                       <UploadButton
                         endpoint="imageUploader"
-                        onClientUploadComplete={(res) => {
+                        onClientUploadComplete={(res: { url: string }[]) => {
                           if (res && res[0]) setCityImageUrl(res[0].url);
                         }}
-                        onUploadError={(error: Error) =>
-                          alert(`Erreur: ${error.message}`)
-                        }
+                        // AJOUT DES ACCOLADES { } ICI AUSSI :
+                        onUploadError={(error: Error) => {
+                          toast.error(`Erreur: ${error.message}`);
+                        }}
                         appearance={{
                           button:
                             "bg-barth-gold text-barth-dark text-sm px-4 py-2 rounded-full",
@@ -814,7 +823,7 @@ export default function CreateAgentForm({
             </button>
           ) : (
             <button
-              onClick={handleSubmit}
+              onClick={handleSubmit} // On appelle handleSubmit ici
               disabled={!validateStep(4)}
               className={STYLES.btnSubmit}
             >

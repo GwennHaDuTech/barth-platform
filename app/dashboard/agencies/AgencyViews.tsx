@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import GlassCard from "@/components/ui/GlassCard";
 import { deleteAgency } from "@/app/actions"; // Assure-toi que cette action existe bien
-import CreateAgencyForm from "./CreateAgencyForm"; // On l'importe pour pouvoir l'ouvrir en mode édition
+import CreateAgencyForm from "./CreateAgencyForm";
+import { toast } from "sonner"; // On l'importe pour pouvoir l'ouvrir en mode édition
 
 interface AgencyData {
   id: string;
@@ -62,15 +63,28 @@ export default function AgencyViews({ agencies }: Props) {
   const handleDelete = async () => {
     if (!deletingAgency) return;
 
-    // Vérification stricte du texte
     const expectedText = `supprimer le site ${deletingAgency.name}`;
-    if (deleteConfirmation !== expectedText) return;
+    if (deleteConfirmation !== expectedText) {
+      toast.error("Le texte de confirmation est incorrect."); // Optionnel
+      return;
+    }
 
     setIsDeleteLoading(true);
-    await deleteAgency(deletingAgency.id);
+
+    // On appelle le serveur
+    const result = await deleteAgency(deletingAgency.id);
+
     setIsDeleteLoading(false);
-    setDeletingAgency(null);
-    setDeleteConfirmation("");
+
+    if (result.success) {
+      // SUCCÈS : On ferme tout et on notifie
+      setDeletingAgency(null);
+      setDeleteConfirmation("");
+      toast.success(`L'agence ${deletingAgency.name} a été supprimée.`);
+    } else {
+      // ERREUR : On prévient l'utilisateur
+      toast.error("Erreur lors de la suppression. Réessayez.");
+    }
   };
 
   if (agencies.length === 0) {

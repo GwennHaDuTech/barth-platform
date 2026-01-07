@@ -29,10 +29,10 @@ export default function CreateAgencyButton({
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <CreateAgencyForm
-            onClose={() => setIsOpen(false)}
             availableAgents={availableAgents}
+            closeModal={() => setIsOpen(false)}
           />
         </div>
       )}
