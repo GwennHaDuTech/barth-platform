@@ -4,20 +4,19 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-// --- 1. SCHÉMA DE VALIDATION (Corrigé) ---
+// --- 1. SCHÉMA DE VALIDATION (Mis à jour) ---
 const AgentFormSchema = z.object({
   firstname: z.string().min(2, "Le prénom est requis"),
   lastname: z.string().min(2, "Le nom est requis"),
-  // Email peut être vide string, mais on le gère comme string
   email: z.string(),
   phone: z.string().min(10, "Téléphone invalide"),
-
-  // CORRECTION : Photo est requise dans ta BDD, donc requise ici aussi
   photo: z.string().min(1, "La photo est requise"),
-
   city: z.string().min(2, "Ville requise"),
 
-  // Champs optionnels (nullable dans BDD)
+  // ✅ AJOUT : L'agence est maintenant requise ou du moins validée
+  agencyId: z.string().min(1, "Veuillez sélectionner une agence"),
+
+  // Champs optionnels
   zipCode: z.string().optional().or(z.literal("")),
   cityPhoto: z.string().optional().or(z.literal("")),
   secondarySector: z.string().optional().or(z.literal("")),
@@ -33,7 +32,7 @@ export async function createAgent(formData: FormData) {
     const rawData = {
       firstname: formData.get("firstname"),
       lastname: formData.get("lastname"),
-      email: formData.get("email") || "", // Assure une string
+      email: formData.get("email") || "",
       phone: formData.get("phone"),
       photo: formData.get("photo"),
       city: formData.get("city"),
@@ -44,6 +43,8 @@ export async function createAgent(formData: FormData) {
       linkedin: formData.get("linkedin"),
       tiktok: formData.get("tiktok"),
       bio: formData.get("bio"),
+      // ✅ AJOUT : Récupération de l'ID de l'agence
+      agencyId: formData.get("agencyId"),
     };
 
     const validated = AgentFormSchema.safeParse(rawData);
@@ -58,6 +59,7 @@ export async function createAgent(formData: FormData) {
 
     const data = validated.data;
 
+    // Génération du Slug
     let slug = `${data.firstname}-${data.lastname}`
       .toLowerCase()
       .normalize("NFD")
@@ -76,9 +78,9 @@ export async function createAgent(formData: FormData) {
         lastname: data.lastname,
         email: data.email,
         phone: data.phone,
-        photo: data.photo, // Maintenant garanti string par Zod
+        photo: data.photo,
         city: data.city,
-        zipCode: data.zipCode || null, // Transforme undefined/"" en null pour Prisma
+        zipCode: data.zipCode || null,
         cityPhoto: data.cityPhoto || null,
         secondarySector: data.secondarySector || null,
         instagram: data.instagram || null,
@@ -86,6 +88,8 @@ export async function createAgent(formData: FormData) {
         tiktok: data.tiktok || null,
         bio: data.bio || null,
         slug: slug,
+        // ✅ AJOUT : Liaison avec l'agence
+        agencyId: data.agencyId,
       },
     });
 
@@ -93,25 +97,18 @@ export async function createAgent(formData: FormData) {
     return { success: true };
   } catch (error) {
     console.error("Erreur createAgent:", error);
-
-    // CORRECTION : On vérifie proprement si c'est une erreur Prisma
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      // P2002 = Violation de contrainte unique (ex: email déjà pris)
       if (error.code === "P2002") {
         return { success: false, error: "Cet email ou ce nom existe déjà." };
       }
     }
-
     return { success: false, error: "Erreur technique lors de la création." };
   }
 }
 
-// ... Les autres fonctions (updateAgent, etc.) restent inchangées ou suivent la même logique
-// Si tu as updateAgent en dessous, assure-toi d'appliquer la même logique pour "catch (error)"
-// --- 3. MISE À JOUR D'AGENT (Fonctionnelle) ---
+// --- 3. MISE À JOUR D'AGENT ---
 export async function updateAgent(id: string, formData: FormData) {
   try {
-    // 1. On récupère les données
     const rawData = {
       firstname: formData.get("firstname"),
       lastname: formData.get("lastname"),
@@ -120,15 +117,16 @@ export async function updateAgent(id: string, formData: FormData) {
       photo: formData.get("photo"),
       city: formData.get("city"),
       zipCode: formData.get("zipCode"),
-      cityPhoto: formData.get("cityPhotoUrl"), // Attention au mapping ici
+      cityPhoto: formData.get("cityPhotoUrl"),
       secondarySector: formData.get("secondarySector"),
       instagram: formData.get("instagram"),
       linkedin: formData.get("linkedin"),
       tiktok: formData.get("tiktok"),
       bio: formData.get("bio"),
+      // ✅ AJOUT
+      agencyId: formData.get("agencyId"),
     };
 
-    // 2. Validation Zod
     const validated = AgentFormSchema.safeParse(rawData);
 
     if (!validated.success) {
@@ -138,7 +136,6 @@ export async function updateAgent(id: string, formData: FormData) {
       };
     }
 
-    // 3. Mise à jour en BDD (C'est ici qu'on utilise 'id', donc l'alerte disparaîtra)
     await prisma.agent.update({
       where: { id },
       data: {
@@ -148,7 +145,6 @@ export async function updateAgent(id: string, formData: FormData) {
         phone: validated.data.phone,
         photo: validated.data.photo as string,
         city: validated.data.city,
-        // Gestion des nullables pour Prisma
         zipCode: validated.data.zipCode || null,
         cityPhoto: validated.data.cityPhoto || null,
         secondarySector: validated.data.secondarySector || null,
@@ -156,7 +152,8 @@ export async function updateAgent(id: string, formData: FormData) {
         linkedin: validated.data.linkedin || null,
         tiktok: validated.data.tiktok || null,
         bio: validated.data.bio || null,
-        // Note : On ne met généralement pas à jour le slug pour ne pas casser le SEO
+        // ✅ AJOUT : Mise à jour de l'agence
+        agencyId: validated.data.agencyId,
       },
     });
 
@@ -168,39 +165,127 @@ export async function updateAgent(id: string, formData: FormData) {
   }
 }
 
+// --- 4. VÉRIFICATION DOUBLON ---
 export async function checkAgentDuplication(
   firstname: string,
   lastname: string
 ) {
   try {
-    // Ici, on utilise bien 'firstname' et 'lastname' dans la requête
     const existing = await prisma.agent.findFirst({
       where: {
-        firstname: { equals: firstname, mode: "insensitive" }, // insensible à la casse
+        firstname: { equals: firstname, mode: "insensitive" },
         lastname: { equals: lastname, mode: "insensitive" },
       },
     });
-
-    // Renvoie true si un agent existe, false sinon
     return !!existing;
   } catch (error) {
     console.error("Erreur vérification doublon:", error);
     return false;
   }
 }
-// --- 5. SUPPRESSION (Fonctionnelle) ---
+
+// --- 5. SUPPRESSION ---
 export async function deleteAgent(agentId: string) {
   try {
-    // On utilise 'agentId' ici pour cibler l'agent à supprimer
     await prisma.agent.delete({
       where: { id: agentId },
     });
-
-    // On rafraîchit la liste pour voir la disparition immédiate
     revalidatePath("/dashboard/users");
     return { success: true };
   } catch (error) {
     console.error("Erreur suppression:", error);
     return { success: false, error: "Impossible de supprimer cet agent." };
+  }
+}
+
+// --- 6. RÉCUPÉRATION DES AGENCES (Nouveau pour le Select) ---
+export async function getAgencies() {
+  try {
+    const agencies = await prisma.agency.findMany({
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+    return agencies;
+  } catch (error) {
+    console.error("Erreur getAgencies:", error);
+    return [];
+  }
+}
+
+// --- 7. GESTION DES AGENCES ---
+
+const AgencySchema = z.object({
+  name: z.string().min(2, "Le nom de la ville est requis"),
+  address: z.string().optional().or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
+  photo: z.string().min(1, "La photo de l'agence est requise"),
+  managerId: z.string().optional().or(z.literal("")),
+});
+export async function createAgency(formData: FormData) {
+  try {
+    const rawData = {
+      name: formData.get("name"),
+      address: formData.get("address"),
+      phone: formData.get("phone"),
+      photo: formData.get("photo"),
+      managerId: formData.get("managerId"),
+    };
+
+    const validated = AgencySchema.safeParse(rawData);
+
+    if (!validated.success) {
+      return { success: false, error: "Données invalides." };
+    }
+
+    const data = validated.data;
+
+    // Création de l'agence
+    await prisma.agency.create({
+      data: {
+        name: data.name,
+        address: data.address || null,
+        phone: data.phone || null,
+        photo: data.photo,
+        // Si un manager est sélectionné, on connecte la relation
+        manager: data.managerId
+          ? { connect: { id: data.managerId } }
+          : undefined,
+      },
+    });
+
+    revalidatePath("/dashboard/agencies"); // On rafraîchit la future page
+    revalidatePath("/dashboard/users"); // On rafraîchit aussi la liste des agents (pour le dropdown)
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur createAgency:", error);
+    return { success: false, error: "Impossible de créer l'agence." };
+  }
+}
+
+// --- SUPPRESSION D'AGENCE ---
+export async function deleteAgency(agencyId: string) {
+  try {
+    // 1. Suppression dans la base de données
+    // Note: Si tu as configuré ton Schema Prisma correctement,
+    // les agents liés seront soit détachés (null), soit supprimés selon tes règles.
+    // Par défaut ici, on supprime juste l'agence.
+    await prisma.agency.delete({
+      where: {
+        id: agencyId,
+      },
+    });
+
+    // 2. Rafraîchir la page des agences pour voir le changement immédiat
+    revalidatePath("/dashboard/agencies");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur lors de la suppression de l'agence:", error);
+    return { success: false, error: "Impossible de supprimer l'agence." };
   }
 }

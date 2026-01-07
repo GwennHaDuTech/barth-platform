@@ -1,16 +1,24 @@
-// app/dashboard/users/page.tsx
 import prisma from "@/lib/prisma";
-import GlassCard from "@/components/ui/GlassCard";
-import AgentManagementTable from "../AgentManagementTable"; // On va le créer juste après
+import { getAgencies } from "@/app/actions";
+import AgentViews from "./AgentViews";
+
+export const dynamic = "force-dynamic";
 
 export default async function UsersManagementPage() {
-  // On récupère les agents AVEC leurs listings pour vérifier la conformité
+  // 1. On récupère les agents avec leurs Listings ET leur Agence (pour l'affichage)
   const agents = await prisma.agent.findMany({
     orderBy: { createdAt: "desc" },
     include: {
-      listings: true, // Crucial pour savoir si l'agent a des annonces
+      listings: true,
+      agency: {
+        // <--- AJOUT : On récupère l'info de l'agence
+        select: { name: true },
+      },
     },
   });
+
+  // 2. On récupère la liste pour le formulaire d'édition
+  const agencies = await getAgencies();
 
   const isProduction = process.env.NODE_ENV === "production";
   const domain = isProduction ? "barth-platform.vercel.app" : "localhost:3000";
@@ -28,7 +36,6 @@ export default async function UsersManagementPage() {
           </p>
         </div>
 
-        {/* Petit compteur global (facultatif) */}
         <div className="text-right">
           <span className="text-4xl font-light text-barth-gold">
             {agents.length}
@@ -37,13 +44,14 @@ export default async function UsersManagementPage() {
         </div>
       </div>
 
-      <GlassCard className="flex-1 flex flex-col overflow-hidden">
-        <AgentManagementTable
+      <div className="flex-1 flex flex-col min-h-0">
+        <AgentViews
           initialAgents={agents}
+          availableAgencies={agencies}
           domain={domain}
           protocol={protocol}
         />
-      </GlassCard>
+      </div>
     </div>
   );
 }

@@ -1,38 +1,25 @@
 "use client";
-// FIX: Force update Vercel types
+
 import { useState, useEffect } from "react";
 // Assure-toi que ce chemin est bon pour UploadThing
 import { UploadButton } from "app/utils/uploadthing";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner"; // <--- ON UTILISE LA VRAIE LIBRAIRIE ICI
 import {
   X,
   Loader2,
-  AlertCircle,
-  Lock,
   MapPin,
   User,
-  Share2,
-  FileText,
-  Linkedin,
   Instagram,
-  CheckCircle2,
-  Plus,
-  ImageIcon,
+  Linkedin,
+  Building2,
 } from "lucide-react";
-// CHANGEMENT ICI : On importe depuis le dossier dashboard
-import { createAgent, updateAgent, checkAgentDuplication } from "app/actions";
 import Image from "next/image";
-// J'ai commenté Sonner si tu ne l'as pas installé, sinon décommente
-// import { toast } from "sonner";
 
-// Petit helper pour les notifications si pas de Sonner
-const toast = {
-  // On remplace 'any' par un type précis : un objet qui peut avoir une description
-  error: (title: string, obj?: { description?: string }) =>
-    alert(`${title}: ${obj?.description || ""}`),
+// Import actions
+import { createAgent, updateAgent, checkAgentDuplication } from "@/app/actions";
 
-  success: (title: string, obj?: { description?: string }) => alert(title),
-};
+// ON A SUPPRIMÉ L'ANCIEN OBJET "const toast = ..." QUI CREAIT LE CONFLIT
 
 const STYLES = {
   container:
@@ -48,6 +35,8 @@ const STYLES = {
   label: "block text-sm font-medium text-gray-300 mb-1",
   input:
     "w-full bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 outline-none transition-all p-2.5 focus:border-barth-gold/50 focus:bg-white/10 focus:ring-1 focus:ring-barth-gold/20",
+  select:
+    "w-full bg-[#1a1a1a] border border-white/10 rounded-xl text-white outline-none transition-all p-2.5 focus:border-barth-gold/50 focus:bg-white/10 focus:ring-1 focus:ring-barth-gold/20 appearance-none",
   inputError: "border-red-500/50 focus:border-red-500 focus:ring-red-500/20",
   inputIconPadding: "pl-12",
   inputReadOnly:
@@ -88,6 +77,7 @@ interface AgentFormData {
   linkedin: string;
   tiktok: string;
   bio: string;
+  agencyId: string;
 }
 
 interface GeoCity {
@@ -100,16 +90,19 @@ interface SelectedCity {
   zip: string;
 }
 
+interface AgencyOption {
+  id: string;
+  name: string;
+}
+
 interface AgentData {
   id: string;
   firstname: string;
   lastname: string;
   email: string;
-
   phone: string | null;
   photo: string | null;
   city: string | null;
-
   zipCode?: string | null;
   cityPhoto?: string | null;
   secondarySector?: string | null;
@@ -117,11 +110,13 @@ interface AgentData {
   linkedin?: string | null;
   tiktok?: string | null;
   bio?: string | null;
+  agencyId?: string | null;
 }
 
 interface Props {
   onClose: () => void;
-  agentToEdit?: AgentData; // Plus d'erreur ici
+  agentToEdit?: AgentData | null; // null possible
+  availableAgencies?: AgencyOption[];
 }
 
 const cleanString = (str: string) => {
@@ -141,7 +136,11 @@ const loadingMessages = [
   "Presque terminé ! ✨",
 ];
 
-export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
+export default function CreateAgentForm({
+  onClose,
+  agentToEdit,
+  availableAgencies = [],
+}: Props) {
   const router = useRouter();
   const isEditMode = !!agentToEdit;
 
@@ -164,6 +163,7 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
         linkedin: agentToEdit.linkedin || "",
         tiktok: agentToEdit.tiktok || "",
         bio: agentToEdit.bio || "",
+        agencyId: agentToEdit.agencyId || "",
       };
     }
     return {
@@ -180,10 +180,10 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
       linkedin: "",
       tiktok: "",
       bio: "",
+      agencyId: "",
     };
   });
 
-  // États pour les images (synchronisés avec formData pour plus de sûreté)
   const [imageUrl, setImageUrl] = useState(agentToEdit?.photo || "");
   const [cityImageUrl, setCityImageUrl] = useState(
     agentToEdit?.cityPhoto || ""
@@ -204,18 +204,11 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
   const [secondaryCitiesList, setSecondaryCitiesList] = useState<
     SelectedCity[]
   >(() => {
-    if (agentToEdit?.secondarySector) {
-      // Logique parsing (identique à ton code)
-      return [];
-    }
+    // Si on voulait parser le secteur secondaire existant, ce serait ici
     return [];
   });
 
-  const isMissing = (value: string | null | undefined) => {
-    if (isEditMode && (!value || value.trim() === "")) return true;
-    return false;
-  };
-
+  // Gestion de l'animation de chargement
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isSubmitting) {
@@ -228,6 +221,7 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
     return () => clearInterval(interval);
   }, [isSubmitting]);
 
+  // --- LOGIQUE API GEO ---
   const searchApiGeo = async (query: string): Promise<GeoCity[]> => {
     if (query.length < 3) return [];
     try {
@@ -300,15 +294,23 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
     setFormData((prev) => ({ ...prev, secondarySector: formatted }));
   };
 
+  // --- VALIDATION DES ETAPES ---
   const validateStep = (step: number) => {
     const d = formData;
     switch (step) {
       case 1:
-        return !!(d.firstname && d.lastname && d.phone && imageUrl);
+        // Nom, Prénom, Tel, Photo, Agence obligatoires
+        return !!(
+          d.firstname &&
+          d.lastname &&
+          d.phone &&
+          imageUrl &&
+          d.agencyId
+        );
       case 2:
-        return !!(d.city && d.zipCode && cityImageUrl); // J'ai retiré secondaryCitiesList obligatoire si tu veux
+        return !!(d.city && d.zipCode && cityImageUrl);
       case 3:
-        return true;
+        return true; // Réseaux sociaux optionnels
       case 4:
         return d.bio.length > 20;
       default:
@@ -318,17 +320,20 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
 
   const handleNext = async () => {
     if (!validateStep(currentStep)) {
-      let errorMsg = "Merci de compléter les champs.";
+      let errorMsg = "Merci de compléter les champs obligatoires.";
+      if (currentStep === 1) {
+        if (!formData.agencyId) errorMsg = "Veuillez sélectionner une agence.";
+        else if (!imageUrl) errorMsg = "Photo de profil manquante.";
+      }
       if (currentStep === 2 && !cityImageUrl)
         errorMsg = "Photo de ville manquante.";
-      if (currentStep === 1 && !imageUrl)
-        errorMsg = "Photo de profil manquante.";
-      toast.error("Incomplet", { description: errorMsg });
+
+      toast.error(errorMsg);
       return;
     }
     setServerError(null);
 
-    // Vérification doublon à l'étape 1
+    // Vérification duplication nom/prénom (seulement en création)
     if (currentStep === 1 && !isEditMode) {
       setIsChecking(true);
       try {
@@ -338,6 +343,7 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
         );
         if (isTaken) {
           setServerError("Un agent avec ce nom semble déjà exister.");
+          toast.error("Un agent avec ce nom existe déjà.");
           setIsChecking(false);
           return;
         }
@@ -353,12 +359,15 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
     setServerError(null);
     setFormData((prev) => {
       const newData = { ...prev, [name]: value };
+      // Auto-génération de l'email en mode création
       if (!isEditMode && (name === "firstname" || name === "lastname")) {
         const fName = cleanString(newData.firstname);
         const lName = cleanString(newData.lastname);
@@ -369,52 +378,58 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateStep(4)) return;
+  // --- FONCTION DE SOUMISSION CORRIGÉE ---
+  const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Note : On utilise onClick sur le bouton, donc pas de e.preventDefault() nécessaire
+    // sauf si le bouton est dans <form> sans type="button".
+    // Ici le bouton est hors du <form> dans ton design, donc ça va.
+
     setIsSubmitting(true);
 
     try {
+      // 1. On construit le FormData MANUELLEMENT à partir de l'état React
+      // car le bouton est en dehors du tag <form> ou onSubmit n'est pas utilisé classiquement
       const dataToSend = new FormData();
-      // On ajoute toutes les données simples
+
+      // Ajout des champs simples
       Object.entries(formData).forEach(([key, value]) => {
-        if (key !== "photo" && key !== "cityPhotoUrl") {
-          dataToSend.append(key, value);
-        }
+        dataToSend.append(key, value);
       });
-      // On ajoute explicitement les URLs des images
-      dataToSend.append("photo", imageUrl);
-      dataToSend.append("cityPhotoUrl", cityImageUrl);
+
+      // S'assurer que les URLs d'images sont bien mises à jour
+      dataToSend.set("photo", imageUrl);
+      dataToSend.set("cityPhoto", cityImageUrl);
+      // "cityPhotoUrl" dans ton state vs "cityPhoto" dans la BDD/Action : attention au nom
+      // Dans ton action tu attends surement "cityPhoto" :
+      dataToSend.append("cityPhoto", cityImageUrl);
 
       let result;
+
       if (isEditMode && agentToEdit) {
+        // MODE ÉDITION
         result = await updateAgent(agentToEdit.id, dataToSend);
       } else {
+        // MODE CRÉATION
         result = await createAgent(dataToSend);
       }
 
-      if (result && !result.success) {
-        setServerError(result.error || "Erreur serveur.");
-        setIsSubmitting(false);
-        toast.error("Oups", { description: result.error });
-        return;
-      }
-
-      // Simulation attente pour UX
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      toast.success(isEditMode ? "Site mis à jour ! 🚀" : "Site créé ! ✨");
-
-      // On rafraîchit la page et on ferme
-      router.refresh();
-
-      // Petit délai pour laisser voir le message de succès
-      setTimeout(() => {
+      if (result?.success) {
+        // ✅ SUCCÈS
         onClose();
-      }, 500);
+        toast.success(
+          isEditMode
+            ? `Le profil de ${formData.firstname} a été mis à jour !`
+            : "Nouvel agent ajouté avec succès au réseau."
+        );
+      } else {
+        // ❌ ERREUR
+        toast.error(result?.error || "Une erreur est survenue.");
+        setServerError(result?.error || "Erreur serveur");
+      }
     } catch (error) {
       console.error(error);
-      setServerError("Erreur technique inattendue.");
+      toast.error("Erreur technique inattendue.");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -445,7 +460,6 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
         </>
       )}
 
-      {/* --- Contenu du formulaire (Je reprends ton code existant, juste le UploadButton change un peu) --- */}
       <div className={isSubmitting ? "w-full" : "flex-1"}>
         {isSubmitting ? (
           <div className="flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in zoom-in duration-700">
@@ -464,16 +478,47 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
           </div>
         ) : (
           <form
-            onSubmit={handleSubmit}
             className={`${STYLES.formSpaceY} animate-in fade-in slide-in-from-right-4 duration-300`}
           >
-            {/* ETAPE 1 */}
+            {/* --- ETAPE 1 : IDENTITÉ --- */}
             {currentStep === 1 && (
               <div className={STYLES.formSpaceY}>
                 <div className="flex items-center gap-2 text-xl text-white mb-4">
                   <User className="text-barth-gold" /> <span>Identité</span>
                 </div>
-                {/* Inputs Prénom/Nom/Email/Tel : Identiques à ton code */}
+
+                {/* SELECT AGENCE */}
+                <div>
+                  <label className={STYLES.label}>
+                    <div className="flex items-center gap-2">
+                      <Building2 size={14} className="text-barth-gold" />
+                      Agence de rattachement
+                    </div>
+                  </label>
+                  <div className="relative">
+                    <select
+                      name="agencyId"
+                      value={formData.agencyId}
+                      onChange={handleChange}
+                      className={STYLES.select}
+                    >
+                      <option value="" disabled>
+                        Sélectionner une agence...
+                      </option>
+                      {availableAgencies.map((agency) => (
+                        <option key={agency.id} value={agency.id}>
+                          {agency.name}
+                        </option>
+                      ))}
+                    </select>
+                    {availableAgencies.length === 0 && (
+                      <p className="text-xs text-orange-400 mt-1 flex items-center gap-1">
+                        ⚠️ Aucune agence trouvée.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <label className={STYLES.label}>Prénom</label>
@@ -496,7 +541,7 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
                     />
                   </div>
                 </div>
-                {/* Email et Tel */}
+
                 <div className="grid grid-cols-2 gap-6">
                   <div className="relative">
                     <label className={STYLES.label}>Email (Auto)</label>
@@ -543,12 +588,13 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
                     ) : (
                       <UploadButton
                         endpoint="imageUploader"
-                        onClientUploadComplete={(res) => {
+                        onClientUploadComplete={(res: { url: string }[]) => {
                           if (res && res[0]) setImageUrl(res[0].url);
                         }}
-                        onUploadError={(error: Error) =>
-                          alert(`Erreur: ${error.message}`)
-                        }
+                        // AJOUT DES ACCOLADES { } ICI :
+                        onUploadError={(error: Error) => {
+                          toast.error(`Erreur upload: ${error.message}`);
+                        }}
                         appearance={{
                           button:
                             "bg-barth-gold text-barth-dark text-sm px-4 py-2 rounded-full",
@@ -565,14 +611,13 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
               </div>
             )}
 
-            {/* ETAPE 2 : VILLE & PHOTO DE VILLE */}
+            {/* --- ETAPE 2 --- */}
             {currentStep === 2 && (
               <div className={STYLES.formSpaceY}>
                 <div className="flex items-center gap-2 text-xl text-white mb-4">
                   <MapPin className="text-barth-gold" /> <span>Secteurs</span>
                 </div>
 
-                {/* Ville Principale (Recherche) - Repris de ton code */}
                 <div className="relative">
                   <label className={STYLES.label}>Ville Principale</label>
                   <input
@@ -607,7 +652,6 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
                   )}
                 </div>
 
-                {/* UPLOAD VILLE */}
                 <div className="mt-4 pt-4 border-t border-white/10">
                   <label className={STYLES.label}>
                     Photo de couverture (Ville)
@@ -632,12 +676,13 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
                     ) : (
                       <UploadButton
                         endpoint="imageUploader"
-                        onClientUploadComplete={(res) => {
+                        onClientUploadComplete={(res: { url: string }[]) => {
                           if (res && res[0]) setCityImageUrl(res[0].url);
                         }}
-                        onUploadError={(error: Error) =>
-                          alert(`Erreur: ${error.message}`)
-                        }
+                        // AJOUT DES ACCOLADES { } ICI AUSSI :
+                        onUploadError={(error: Error) => {
+                          toast.error(`Erreur: ${error.message}`);
+                        }}
                         appearance={{
                           button:
                             "bg-barth-gold text-barth-dark text-sm px-4 py-2 rounded-full",
@@ -647,7 +692,6 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
                   </div>
                 </div>
 
-                {/* Villes secondaires (Ton code existant) */}
                 <div className="mt-4">
                   <label className={STYLES.label}>Secteurs Secondaires</label>
                   <div className="relative">
@@ -689,10 +733,9 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
               </div>
             )}
 
-            {/* ETAPE 3 : RESEAUX (Simple inputs) */}
+            {/* --- ETAPE 3 --- */}
             {currentStep === 3 && (
               <div className={STYLES.formSpaceY}>
-                {/* ... Ton code réseaux ... */}
                 <div className="relative">
                   <Instagram
                     className="absolute left-4 top-3 text-pink-500"
@@ -734,7 +777,7 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
               </div>
             )}
 
-            {/* ETAPE 4 : BIO */}
+            {/* --- ETAPE 4 --- */}
             {currentStep === 4 && (
               <div className={STYLES.formSpaceY}>
                 <label className={STYLES.label}>Biographie</label>
@@ -755,7 +798,6 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
         )}
       </div>
 
-      {/* Footer Boutons Navigation (Back / Next / Submit) */}
       {!isSubmitting && (
         <div className="mt-6 pt-4 border-t border-white/10 flex justify-between items-center">
           {currentStep > 1 ? (
@@ -781,7 +823,7 @@ export default function CreateAgentForm({ onClose, agentToEdit }: Props) {
             </button>
           ) : (
             <button
-              onClick={handleSubmit}
+              onClick={handleSubmit} // On appelle handleSubmit ici
               disabled={!validateStep(4)}
               className={STYLES.btnSubmit}
             >

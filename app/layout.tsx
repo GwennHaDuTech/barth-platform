@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 // 1. Import de Clerk
 import { ClerkProvider } from "@clerk/nextjs";
-import { frFR } from "@clerk/localizations"; // Pour l'avoir en français !
+import { frFR } from "@clerk/localizations";
+import { Toaster } from "sonner"; // Pour l'avoir en français !
 
 export const metadata: Metadata = {
   title: "Barth Platform",
@@ -18,7 +19,11 @@ export default function RootLayout({
     // 2. On enveloppe TOUT le HTML dans ClerkProvider
     <ClerkProvider localization={frFR}>
       <html lang="fr">
-        <body>{children}</body>
+        <body>
+          {children}
+          {/* theme="dark" pour coller à ton design, richColors pour avoir du vert/rouge auto */}
+          <Toaster position="bottom-right" theme="dark" richColors />
+        </body>
       </html>
     </ClerkProvider>
   );
