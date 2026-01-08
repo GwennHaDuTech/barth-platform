@@ -1,83 +1,77 @@
 import React from "react";
 import prisma from "@/lib/prisma";
 import GlassCard from "@/components/ui/GlassCard";
-import DashboardInteractions from "@/components/DashboardInteractions";
-import AgentListTable from "./AgentListTable";
-import styles from "./dashboard.module.css";
-// ✅ IMPORT AJOUTÉ
-import RightSidebar from "@/components/RightSideBar";
+import DashboardClientWrapper from "./DashboardClientWrapper";
+import { Prisma } from "@prisma/client";
+// ✅ Type utilisé pour typer proprement la constante agents
+type AgentWithAgency = Prisma.AgentGetPayload<{
+  include: { agency: true };
+}>;
+
+// ✅ Interface pour typer proprement les agences
+interface AgencyOption {
+  id: string;
+  name: string;
+}
 
 export default async function DashboardPage() {
-  const agents = await prisma.agent.findMany({
-    orderBy: { createdAt: "desc" },
+  // 1. Récupération typée des agents (L'erreur 'unused' disparaît ici)
+  const agents: AgentWithAgency[] = await prisma.agent.findMany({
+    include: { agency: true },
   });
 
-  const isProduction = process.env.NODE_ENV === "production";
-  const domain = isProduction ? "barth-platform.vercel.app" : "localhost:3000";
-  const protocol = isProduction ? "https" : "http";
+  const agencies: AgencyOption[] = await prisma.agency.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  // 2. Remplacement du 'any[]' par le type AgencyOption
+  const physicalAgencies: AgencyOption[] = [];
 
   return (
-    // ✅ WRAPPER RELATIF : Permet de positionner la sidebar par rapport à cette page uniquement
-    <div className="relative min-h-full">
-      {/* 1. CONTENEUR PRINCIPAL (CSS Grid + Padding Droite géré par styles.mainContainer) */}
-      <div className={styles.mainContainer}>
-        {/* SECTION HAUT : INTERACTIONS */}
-        <div className={styles.headerSection}>
-          <DashboardInteractions />
-        </div>
-
-        {/* SECTION MILIEU : GRILLE (Liste + Agences) */}
-        <div className={styles.gridSection}>
-          <GlassCard className="flex flex-col overflow-hidden h-full">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-light">Liste des sites crées</h2>
-              <div className="text-sm px-4 py-2 rounded-full border border-barth-gold/30 text-barth-gold bg-barth-gold/10 cursor-pointer hover:bg-barth-gold/20 transition">
-                trier par : Le plus de visite... ▼
-              </div>
-            </div>
-
-            <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar">
-              {agents.length === 0 ? (
-                <div className="h-full flex items-center justify-center italic opacity-30 text-white">
-                  Aucun site pour le moment.
-                </div>
-              ) : (
-                <AgentListTable
-                  initialAgents={agents}
-                  domain={domain}
-                  protocol={protocol}
-                  isProduction={isProduction}
-                />
-              )}
-            </div>
+    <div className="relative h-screen overflow-hidden bg-transparent text-white p-6">
+      <div className="flex flex-col h-full gap-6">
+        {/* TOP KPI (12%) */}
+        <div className="grid grid-cols-4 gap-4 h-[12%]">
+          <GlassCard className="flex flex-col justify-center p-4 hover:bg-white/10 transition-colors">
+            <span className="text-gray-400 text-[10px] uppercase tracking-widest font-medium">
+              Total Sites
+            </span>
+            <span className="text-2xl font-light text-barth-gold">
+              {agents.length}
+            </span>
           </GlassCard>
-
-          {/* COLONNE 2 : Agence Physique */}
-          <GlassCard className="flex items-center justify-center opacity-50 text-gray-500 font-light text-xl border-dashed h-full">
-            site agence physique
+          <GlassCard className="flex flex-col justify-center p-4">
+            <span className="text-gray-400 text-[10px] uppercase tracking-widest font-medium">
+              Visites 24h
+            </span>
+            <span className="text-2xl font-light text-barth-gold">1,284</span>
           </GlassCard>
-
-          {/* COLONNE 3 : Agence En Ligne */}
-          <GlassCard className="flex items-center justify-center opacity-50 text-gray-500 font-light text-xl border-dashed h-full">
-            site agence en ligne
+          <GlassCard className="flex flex-col justify-center p-4">
+            <span className="text-gray-400 text-[10px] uppercase tracking-widest font-medium">
+              Taux Rebond
+            </span>
+            <span className="text-2xl font-light text-barth-gold">24%</span>
           </GlassCard>
-        </div>
-
-        {/* SECTION BAS : GRAPHIQUE */}
-        <div className={styles.statsSection}>
-          <GlassCard className="h-full flex flex-col p-6">
-            <h2 className="text-xl font-light mb-4">Nombre de visite depuis</h2>
-            <div className="flex-1 flex items-center justify-center text-gray-500 border border-white/5 rounded-2xl bg-white/5">
-              Graphique en cours de construction...
+          <GlassCard className="flex flex-col justify-center p-4 border-barth-gold/20">
+            <span className="text-gray-400 text-[10px] uppercase tracking-widest font-medium">
+              Statut
+            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-sm font-light text-green-500/80">
+                Opérationnel
+              </span>
             </div>
           </GlassCard>
         </div>
-      </div>
 
-      {/* 2. RIGHT SIDEBAR : Positionnée en absolu à droite */}
-      {/* Elle remplit l'espace vide créé par le padding-right du CSS */}
-      <div className="absolute top-0 right-0 h-full z-20 pointer-events-none">
-        <RightSidebar />
+        {/* MIDDLE & BOTTOM SECTION */}
+        <DashboardClientWrapper
+          initialAgents={agents}
+          physicalAgencies={physicalAgencies}
+          availableAgencies={agencies}
+        />
       </div>
     </div>
   );

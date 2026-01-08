@@ -93,7 +93,7 @@ export async function createAgent(formData: FormData) {
       },
     });
 
-    revalidatePath("/dashboard/users");
+    revalidatePath("/dashboard", "layout");
     return { success: true };
   } catch (error) {
     console.error("Erreur createAgent:", error);
@@ -157,7 +157,7 @@ export async function updateAgent(id: string, formData: FormData) {
       },
     });
 
-    revalidatePath("/dashboard/users");
+    revalidatePath("/dashboard", "layout");
     return { success: true };
   } catch (error) {
     console.error("Erreur Update:", error);
@@ -190,7 +190,7 @@ export async function deleteAgent(agentId: string) {
     await prisma.agent.delete({
       where: { id: agentId },
     });
-    revalidatePath("/dashboard/users");
+    revalidatePath("/dashboard", "layout");
     return { success: true };
   } catch (error) {
     console.error("Erreur suppression:", error);
@@ -287,8 +287,8 @@ export async function createAgency(formData: FormData) {
       },
     });
 
-    revalidatePath("/dashboard/agencies");
-    revalidatePath("/dashboard/users");
+    revalidatePath("/dashboard", "layout");
+    revalidatePath("/dashboard", "layout");
     return { success: true };
   } catch (error) {
     console.error("Erreur createAgency:", error);
@@ -306,7 +306,7 @@ export async function deleteAgency(agencyId: string) {
       },
     });
     // 2. Rafraîchir la page des agences pour voir le changement immédiat
-    revalidatePath("/dashboard/agencies");
+    revalidatePath("/dashboard", "layout");
 
     return { success: true };
   } catch (error) {

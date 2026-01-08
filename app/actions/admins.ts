@@ -12,8 +12,6 @@ const resend = process.env.RESEND_API_KEY
   : null;
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-// Remplacez par votre vrai domaine vérifié sur Resend (ex: 'ne-pas-repondre@barth-platform.com')
-// En mode test gratuit sur Resend, utilisez 'onboarding@resend.dev'
 const SENDER_EMAIL =
   "Barth Platform <onboarding@paulbroussouloux-barthimmobilier.fr>";
 
