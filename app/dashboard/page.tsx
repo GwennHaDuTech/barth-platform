@@ -3,30 +3,37 @@ import prisma from "@/lib/prisma";
 import GlassCard from "@/components/ui/GlassCard";
 import DashboardClientWrapper from "./DashboardClientWrapper";
 import { Prisma } from "@prisma/client";
-// ✅ Type utilisé pour typer proprement la constante agents
+
+// Type pour les agents avec leur agence rattachée
 type AgentWithAgency = Prisma.AgentGetPayload<{
   include: { agency: true };
 }>;
 
-// ✅ Interface pour typer proprement les agences
-interface AgencyOption {
+// Interface pour les agences (utilisée pour les deux autres colonnes)
+interface AgencyItem {
   id: string;
   name: string;
+  // Ajoute d'autres champs ici si tu veux afficher plus d'infos (ex: ville, slug...)
 }
 
 export default async function DashboardPage() {
-  // 1. Récupération typée des agents (L'erreur 'unused' disparaît ici)
+  // 1. Récupération des agents (Colonne 1)
   const agents: AgentWithAgency[] = await prisma.agent.findMany({
     include: { agency: true },
+    orderBy: { lastname: "asc" },
   });
 
-  const agencies: AgencyOption[] = await prisma.agency.findMany({
-    select: { id: true, name: true },
+  // 2. Récupération de toutes les agences (Colonne 2 et Sélecteur Formulaire)
+  const allAgencies = await prisma.agency.findMany({
     orderBy: { name: "asc" },
   });
 
-  // 2. Remplacement du 'any[]' par le type AgencyOption
-  const physicalAgencies: AgencyOption[] = [];
+  // On sépare les données pour la clarté, même si ici on passe tout à la colonne physique
+  // Plus tard, tu pourras filtrer si tu as un champ 'type' dans ta table Agency
+  const physicalAgencies: AgencyItem[] = allAgencies.map((agency) => ({
+    id: agency.id,
+    name: agency.name,
+  }));
 
   return (
     <div className="relative h-screen overflow-hidden bg-transparent text-white p-6">
@@ -38,7 +45,7 @@ export default async function DashboardPage() {
               Total Sites
             </span>
             <span className="text-2xl font-light text-barth-gold">
-              {agents.length}
+              {agents.length + physicalAgencies.length}
             </span>
           </GlassCard>
           <GlassCard className="flex flex-col justify-center p-4">
@@ -67,10 +74,11 @@ export default async function DashboardPage() {
         </div>
 
         {/* MIDDLE & BOTTOM SECTION */}
+        {/* On passe allAgencies pour le formulaire et physicalAgencies pour le tableau 2 */}
         <DashboardClientWrapper
           initialAgents={agents}
           physicalAgencies={physicalAgencies}
-          availableAgencies={agencies}
+          availableAgencies={allAgencies}
         />
       </div>
     </div>

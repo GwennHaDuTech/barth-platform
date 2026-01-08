@@ -374,8 +374,7 @@ export default function CreateAgentForm({
       if (!isEditMode && (name === "firstname" || name === "lastname")) {
         const fName = cleanString(newData.firstname);
         const lName = cleanString(newData.lastname);
-        if (fName || lName)
-          newData.email = `${fName}${lName ? "." + lName : ""}@barth-immo.fr`;
+        if (fName && lName) newData.email = `${fName}.${lName}@barth-immo.fr`;
         else newData.email = "";
       }
       return newData;

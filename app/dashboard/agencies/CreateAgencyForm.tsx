@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
   X,
-  Search,
   ChevronDown,
   Check,
   Loader2,
@@ -28,7 +27,7 @@ interface Agent {
 }
 
 interface CreateAgencyFormProps {
-  closeModal: () => void;
+  onClose: () => void;
   availableAgents?: Agent[];
 }
 
@@ -48,17 +47,14 @@ interface AddressResult {
 }
 
 export default function CreateAgencyForm({
-  closeModal,
+  onClose,
   availableAgents,
 }: CreateAgencyFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ✅ CONFIGURATION UPLOADTHING
-  // "imageUploader" correspond au nom dans ton core.ts
   const { startUpload } = useUploadThing("imageUploader");
-
-  // État pour stocker le fichier réel à uploader
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
 
   // --- ÉTATS DU FORMULAIRE ---
@@ -66,22 +62,22 @@ export default function CreateAgencyForm({
     name: "",
     managerId: "",
     phone: "",
-    email: "",
+    email: "", // Optionnel
     city: "",
     zipCode: "",
     address: "",
   });
 
-  // --- GESTION IMAGE (Preview + Stockage) ---
+  // --- GESTION IMAGE ---
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // 1. On garde le fichier pour l'upload plus tard
       setFileToUpload(file);
-      // 2. On crée une URL temporaire pour l'affichage immédiat
+      // Nettoyage de l'ancienne URL si elle existe
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
     }
@@ -89,12 +85,13 @@ export default function CreateAgencyForm({
 
   const removeImage = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
-    setFileToUpload(null); // On vide le fichier
+    setFileToUpload(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // --- LOGIQUE VILLE ---
+  // --- LOGIQUE VILLE (API Geo) ---
   const [cityQuery, setCityQuery] = useState("");
   const [cityResults, setCityResults] = useState<CityResult[]>([]);
   const [selectedCityCode, setSelectedCityCode] = useState<string | null>(null);
@@ -126,7 +123,7 @@ export default function CreateAgencyForm({
     return () => clearTimeout(timer);
   }, [cityQuery]);
 
-  // --- LOGIQUE ADRESSE ---
+  // --- LOGIQUE ADRESSE (API Adresse) ---
   const [addressQuery, setAddressQuery] = useState("");
   const [addressResults, setAddressResults] = useState<AddressResult[]>([]);
   const [showAddressList, setShowAddressList] = useState(false);
@@ -145,14 +142,10 @@ export default function CreateAgencyForm({
     const timer = setTimeout(async () => {
       try {
         let url = `https://api-adresse.data.gouv.fr/search/?q=${addressQuery}&limit=5`;
-        if (selectedCityCode) {
-          url += `&citycode=${selectedCityCode}`;
-        }
+        if (selectedCityCode) url += `&citycode=${selectedCityCode}`;
         const res = await fetch(url);
         const data = await res.json();
-        setAddressResults(
-          data.features && Array.isArray(data.features) ? data.features : []
-        );
+        setAddressResults(data.features || []);
         setShowAddressList(true);
       } catch (e) {
         console.error("Erreur API Adresse", e);
@@ -165,27 +158,12 @@ export default function CreateAgencyForm({
   const [managerSearch, setManagerSearch] = useState("");
   const [isManagerDropdownOpen, setIsManagerDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const safeAgentsList: Agent[] = Array.isArray(availableAgents)
-    ? availableAgents
-    : [];
+  const safeAgentsList = Array.isArray(availableAgents) ? availableAgents : [];
 
   const filteredAgents = safeAgentsList.filter((agent) => {
     const fullName = `${agent.firstname} ${agent.lastname}`.toLowerCase();
     return fullName.includes(managerSearch.toLowerCase());
   });
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsManagerDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/\D/g, "");
@@ -194,7 +172,7 @@ export default function CreateAgencyForm({
     setFormData({ ...formData, phone: formatted });
   };
 
-  // --- SOUMISSION (AVEC UPLOAD) ---
+  // --- SOUMISSION ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -202,20 +180,15 @@ export default function CreateAgencyForm({
     try {
       let uploadedImageUrl = "";
 
-      // 1. Si un fichier a été sélectionné, on l'envoie d'abord à UploadThing
       if (fileToUpload) {
-        // startUpload attend un tableau de fichiers
         const uploadRes = await startUpload([fileToUpload]);
-
-        if (uploadRes && uploadRes[0]) {
+        if (uploadRes?.[0]) {
           uploadedImageUrl = uploadRes[0].url;
-          console.log("Image uploadée avec succès :", uploadedImageUrl);
         } else {
           throw new Error("Échec de l'upload de l'image.");
         }
       }
 
-      // 2. Préparation des données pour la Server Action
       const formPayload = new FormData();
       formPayload.append("name", formData.name);
       formPayload.append("city", formData.city);
@@ -223,36 +196,34 @@ export default function CreateAgencyForm({
       formPayload.append("address", formData.address);
       formPayload.append("phone", formData.phone.replace(/\s/g, ""));
 
-      const emailToSend = formData.email || `agence-${Date.now()}@test.com`;
-      formPayload.append("email", emailToSend);
+      // Email par défaut si vide pour éviter les erreurs de contrainte unique
+      const finalEmail =
+        formData.email ||
+        `agence-${Math.random().toString(36).slice(2, 7)}@system.com`;
+      formPayload.append("email", finalEmail);
 
       if (formData.managerId) {
         formPayload.append("managerId", formData.managerId);
       }
-
-      // 3. On envoie l'URL finale (ou vide si pas d'image)
       formPayload.append("photo", uploadedImageUrl);
 
-      // 4. Création en base de données
       const result = await createAgency(formPayload);
 
-      if (!result.success) {
-        throw new Error(result.error);
-      }
+      if (!result.success) throw new Error(result.error);
 
       router.refresh();
-      closeModal();
+      onClose();
     } catch (error) {
       console.error(error);
-      const message =
-        error instanceof Error ? error.message : "Une erreur est survenue.";
-      alert(message);
+      alert(
+        error instanceof Error ? error.message : "Erreur lors de la création."
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Styles
+  // --- STYLES REUTILISABLES ---
   const inputWrapperStyle =
     "relative flex items-center bg-[#1a1a1a] border border-gray-800 rounded-lg overflow-hidden focus-within:border-white/40 transition-colors";
   const inputIconStyle = "ml-3 text-gray-500 shrink-0";
@@ -269,11 +240,11 @@ export default function CreateAgencyForm({
           <div>
             <h2 className="text-xl font-bold text-white">Nouvelle Agence</h2>
             <p className="text-sm text-gray-400 mt-1">
-              Ajoutez un nouveau point de vente.
+              Configurez votre nouveau point de vente.
             </p>
           </div>
           <button
-            onClick={closeModal}
+            onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors p-1"
           >
             <X size={20} />
@@ -287,9 +258,9 @@ export default function CreateAgencyForm({
             onSubmit={handleSubmit}
             className="space-y-5"
           >
-            {/* UPLOAD IMAGE */}
+            {/* PHOTO */}
             <div>
-              <label className={labelStyle}>Photo de couverture</label>
+              <label className={labelStyle}>Photo de l&apos;agence</label>
               <div
                 onClick={() => fileInputRef.current?.click()}
                 className="w-full h-32 relative rounded-lg overflow-hidden border border-gray-800 bg-[#1a1a1a] hover:border-white/30 cursor-pointer transition-all group"
@@ -305,7 +276,7 @@ export default function CreateAgencyForm({
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <button
                         onClick={removeImage}
-                        className="bg-red-500/80 p-2 rounded-full text-white hover:bg-red-600 transition-colors"
+                        className="bg-red-500/80 p-2 rounded-full text-white hover:bg-red-600"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -315,7 +286,7 @@ export default function CreateAgencyForm({
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 group-hover:text-white transition-colors">
                     <ImagePlus size={32} className="mb-2 opacity-50" />
                     <span className="text-xs font-medium">
-                      Cliquez pour ajouter une image
+                      Ajouter une photo
                     </span>
                   </div>
                 )}
@@ -347,112 +318,111 @@ export default function CreateAgencyForm({
               </div>
             </div>
 
-            {/* VILLE */}
-            <div className="relative">
-              <label className={labelStyle}>Ville</label>
-              <div className={inputWrapperStyle}>
-                <MapPin size={18} className={inputIconStyle} />
-                <input
-                  type="text"
-                  placeholder="Tapez le nom d'une ville..."
-                  className={inputStyle}
-                  value={cityQuery}
-                  onChange={(e) => {
-                    setCityQuery(e.target.value);
-                    setFormData({ ...formData, city: e.target.value });
-                    setSelectedCityCode(null);
-                  }}
-                  onFocus={() => cityQuery.length >= 3 && setShowCityList(true)}
-                  onBlur={() => setTimeout(() => setShowCityList(false), 200)}
-                />
+            {/* VILLE ET ADRESSE (votre logique API reste identique) */}
+            <div className="space-y-4">
+              {/* Ville */}
+              <div className="relative">
+                <label className={labelStyle}>Ville</label>
+                <div className={inputWrapperStyle}>
+                  <MapPin size={18} className={inputIconStyle} />
+                  <input
+                    type="text"
+                    placeholder="Ville..."
+                    className={inputStyle}
+                    value={cityQuery}
+                    onChange={(e) => {
+                      setCityQuery(e.target.value);
+                      setFormData({ ...formData, city: e.target.value });
+                      setSelectedCityCode(null);
+                    }}
+                    onFocus={() =>
+                      cityQuery.length >= 3 && setShowCityList(true)
+                    }
+                    onBlur={() => setTimeout(() => setShowCityList(false), 200)}
+                  />
+                </div>
+                {showCityList && cityResults.length > 0 && (
+                  <ul className="absolute z-20 w-full bg-[#1a1a1a] border border-gray-800 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto py-1">
+                    {cityResults.map((city) => (
+                      <li
+                        key={city.code}
+                        onMouseDown={() => {
+                          ignoreCitySearch.current = true;
+                          setCityQuery(city.nom);
+                          setFormData({
+                            ...formData,
+                            city: city.nom,
+                            zipCode: city.codesPostaux[0] || "",
+                          });
+                          setSelectedCityCode(city.code);
+                          setShowCityList(false);
+                        }}
+                        className="px-4 py-2 hover:bg-gray-800 cursor-pointer flex justify-between text-sm text-gray-200"
+                      >
+                        <span>{city.nom}</span>
+                        <span className="text-gray-500 text-xs">
+                          {city.codesPostaux[0]}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
-              {showCityList && cityResults.length > 0 && (
-                <ul className="absolute z-20 w-full bg-[#1a1a1a] border border-gray-800 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto py-1">
-                  {cityResults.map((city) => (
-                    <li
-                      key={city.code}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        ignoreCitySearch.current = true;
-                        setCityQuery(city.nom);
-                        setFormData({
-                          ...formData,
-                          city: city.nom,
-                          zipCode: city.codesPostaux[0] || "",
-                        });
-                        setSelectedCityCode(city.code);
-                        setShowCityList(false);
-                      }}
-                      className="px-4 py-2 hover:bg-gray-800 cursor-pointer flex justify-between text-sm transition-colors"
-                    >
-                      <span className="font-medium text-gray-200">
-                        {city.nom}
-                      </span>
-                      <span className="text-gray-500 text-xs">
-                        {city.codesPostaux[0]}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* ADRESSE */}
-            <div className="relative">
-              <label className={labelStyle}>Adresse Postale</label>
-              <div
-                className={`${inputWrapperStyle} ${
-                  !selectedCityCode ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-              >
-                <MapPin size={18} className={inputIconStyle} />
-                <input
-                  type="text"
-                  disabled={!selectedCityCode}
-                  placeholder={
-                    selectedCityCode
-                      ? "Numéro et nom de voie..."
-                      : "Sélectionnez une ville d'abord"
-                  }
-                  className={inputStyle}
-                  value={addressQuery}
-                  onChange={(e) => {
-                    setAddressQuery(e.target.value);
-                    setFormData({ ...formData, address: e.target.value });
-                  }}
-                  onFocus={() =>
-                    addressQuery.length >= 3 && setShowAddressList(true)
-                  }
-                  onBlur={() =>
-                    setTimeout(() => setShowAddressList(false), 200)
-                  }
-                />
+              {/* Adresse */}
+              <div className="relative">
+                <label className={labelStyle}>Adresse</label>
+                <div
+                  className={`${inputWrapperStyle} ${
+                    !selectedCityCode && "opacity-50"
+                  }`}
+                >
+                  <MapPin size={18} className={inputIconStyle} />
+                  <input
+                    disabled={!selectedCityCode}
+                    type="text"
+                    placeholder={
+                      selectedCityCode
+                        ? "Rue..."
+                        : "Sélectionnez d'abord la ville"
+                    }
+                    className={inputStyle}
+                    value={addressQuery}
+                    onChange={(e) => {
+                      setAddressQuery(e.target.value);
+                      setFormData({ ...formData, address: e.target.value });
+                    }}
+                    onFocus={() =>
+                      addressQuery.length >= 3 && setShowAddressList(true)
+                    }
+                    onBlur={() =>
+                      setTimeout(() => setShowAddressList(false), 200)
+                    }
+                  />
+                </div>
+                {showAddressList && addressResults.length > 0 && (
+                  <ul className="absolute z-20 w-full bg-[#1a1a1a] border border-gray-800 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto py-1">
+                    {addressResults.map((item, idx) => (
+                      <li
+                        key={idx}
+                        onMouseDown={() => {
+                          ignoreAddressSearch.current = true;
+                          setAddressQuery(item.properties.name);
+                          setFormData({
+                            ...formData,
+                            address: item.properties.name,
+                            zipCode: item.properties.postcode,
+                          });
+                          setShowAddressList(false);
+                        }}
+                        className="px-4 py-2 hover:bg-gray-800 cursor-pointer text-sm text-gray-300"
+                      >
+                        {item.properties.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-
-              {showAddressList && addressResults.length > 0 && (
-                <ul className="absolute z-20 w-full bg-[#1a1a1a] border border-gray-800 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto py-1">
-                  {addressResults.map((item, idx) => (
-                    <li
-                      key={idx}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        ignoreAddressSearch.current = true;
-                        setAddressQuery(item.properties.name);
-                        setFormData({
-                          ...formData,
-                          address: item.properties.name,
-                          zipCode: item.properties.postcode,
-                        });
-                        setShowAddressList(false);
-                      }}
-                      className="px-4 py-2 hover:bg-gray-800 cursor-pointer text-sm text-gray-300 transition-colors"
-                    >
-                      {item.properties.name}
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -463,105 +433,71 @@ export default function CreateAgencyForm({
                   <Phone size={18} className={inputIconStyle} />
                   <input
                     type="text"
-                    placeholder="01 23 45 67 89"
+                    placeholder="06 00 00 00 00"
                     className={inputStyle}
                     value={formData.phone}
                     onChange={handlePhoneChange}
-                    maxLength={14}
                   />
                 </div>
               </div>
 
-              {/* RESPONSABLE (OPTIONNEL) */}
+              {/* RESPONSABLE */}
               <div className="relative" ref={dropdownRef}>
-                <label className={labelStyle}>Responsable (Optionnel)</label>
+                <label className={labelStyle}>Responsable</label>
                 <div
                   onClick={() =>
                     setIsManagerDropdownOpen(!isManagerDropdownOpen)
                   }
-                  className={`${inputWrapperStyle} cursor-pointer py-0 h-11.5`}
+                  className={`${inputWrapperStyle} cursor-pointer h-11.5 px-3 justify-between`}
                 >
-                  <User size={18} className={inputIconStyle} />
-                  <div
-                    className={`flex-1 ${inputStyle} flex items-center truncate`}
-                  >
+                  <div className="flex items-center truncate gap-2">
+                    <User size={18} className="text-gray-500" />
                     <span
-                      className={
+                      className={`text-sm ${
                         formData.managerId ? "text-white" : "text-gray-500"
-                      }
+                      }`}
                     >
                       {formData.managerId
-                        ? (() => {
-                            const m = safeAgentsList.find(
-                              (a) => a.id === formData.managerId
-                            );
-                            return m
-                              ? `${m.firstname} ${m.lastname}`
-                              : "Introuvable";
-                          })()
-                        : "Sélectionner (Facultatif)"}
+                        ? safeAgentsList.find(
+                            (a) => a.id === formData.managerId
+                          )?.firstname +
+                          " " +
+                          safeAgentsList.find(
+                            (a) => a.id === formData.managerId
+                          )?.lastname
+                        : "Sélectionner"}
                     </span>
                   </div>
-
-                  {formData.managerId ? (
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setFormData({ ...formData, managerId: "" });
-                      }}
-                      className="mr-2 p-1 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors z-10"
-                    >
-                      <X size={14} />
-                    </div>
-                  ) : (
-                    <ChevronDown size={18} className="text-gray-500 mr-3" />
-                  )}
+                  <ChevronDown size={16} className="text-gray-500" />
                 </div>
 
                 {isManagerDropdownOpen && (
-                  <div className="absolute z-30 w-full bg-[#1a1a1a] border border-gray-800 mt-1 rounded-lg shadow-xl overflow-hidden bottom-full mb-1">
-                    <div className="p-2 border-b border-gray-800 bg-[#121212]">
-                      <div className="flex items-center bg-[#1a1a1a] border border-gray-800 rounded-md px-2 py-1.5">
-                        <Search size={14} className="text-gray-500 mr-2" />
-                        <input
-                          autoFocus
-                          type="text"
-                          placeholder="Rechercher..."
-                          className="w-full outline-none text-sm bg-transparent text-white placeholder-gray-600"
-                          value={managerSearch}
-                          onChange={(e) => setManagerSearch(e.target.value)}
-                        />
-                      </div>
+                  <div className="absolute bottom-full mb-2 z-30 w-full bg-[#1a1a1a] border border-gray-800 rounded-lg shadow-xl overflow-hidden">
+                    <div className="p-2 border-b border-gray-800">
+                      <input
+                        autoFocus
+                        className="w-full bg-black border border-gray-800 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-white/20"
+                        placeholder="Filtrer..."
+                        value={managerSearch}
+                        onChange={(e) => setManagerSearch(e.target.value)}
+                      />
                     </div>
-                    <ul className="max-h-48 overflow-y-auto py-1 custom-scrollbar">
-                      {filteredAgents.length === 0 ? (
-                        <li className="px-4 py-2 text-sm text-gray-500 text-center">
-                          Aucun agent
+                    <ul className="max-h-40 overflow-y-auto">
+                      {filteredAgents.map((agent) => (
+                        <li
+                          key={agent.id}
+                          onClick={() => {
+                            setFormData({ ...formData, managerId: agent.id });
+                            setIsManagerDropdownOpen(false);
+                          }}
+                          className="px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 cursor-pointer flex justify-between"
+                        >
+                          {agent.firstname} {agent.lastname}
+                          {formData.managerId === agent.id && (
+                            <Check size={14} className="text-white" />
+                          )}
                         </li>
-                      ) : (
-                        filteredAgents.map((agent) => (
-                          <li
-                            key={agent.id}
-                            onClick={() => {
-                              setFormData({ ...formData, managerId: agent.id });
-                              setIsManagerDropdownOpen(false);
-                              setManagerSearch("");
-                            }}
-                            className={`px-4 py-2 text-sm cursor-pointer flex justify-between items-center hover:bg-gray-800 transition-colors ${
-                              formData.managerId === agent.id
-                                ? "bg-gray-800 text-barth-gold font-medium"
-                                : "text-gray-300"
-                            }`}
-                          >
-                            <span>
-                              {agent.firstname} {agent.lastname}
-                            </span>
-                            {formData.managerId === agent.id && (
-                              <Check size={14} />
-                            )}
-                          </li>
-                        ))
-                      )}
+                      ))}
                     </ul>
                   </div>
                 )}
@@ -573,20 +509,21 @@ export default function CreateAgencyForm({
         {/* Footer */}
         <div className="p-5 border-t border-gray-800 flex justify-end gap-3 bg-[#121212] rounded-b-xl">
           <button
-            onClick={closeModal}
-            className="px-5 py-2 rounded-lg text-gray-400 font-medium hover:text-white hover:bg-white/5 transition-all text-sm"
+            onClick={onClose}
+            className="px-5 py-2 text-gray-400 hover:text-white text-sm"
           >
             Annuler
           </button>
-
           <button
             type="submit"
             form="createAgencyForm"
             disabled={isSubmitting || !formData.name || !selectedCityCode}
-            className="px-6 py-2 rounded-lg bg-white text-black font-bold hover:bg-gray-200 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+            className="px-6 py-2 rounded-lg bg-white text-black font-bold hover:bg-gray-200 flex items-center gap-2 disabled:opacity-40 transition-all text-sm"
           >
-            {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-            {isSubmitting ? "Envoi en cours..." : "Créer le site"}
+            {isSubmitting ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : null}
+            {isSubmitting ? "Création..." : "Créer l'agence"}
           </button>
         </div>
       </div>
