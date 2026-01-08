@@ -19,6 +19,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { deleteAgent } from "@/app/actions";
+import { deleteAgency } from "../../app/actions/agencies";
 import { toast } from "sonner";
 
 interface DashboardItem {
@@ -30,13 +31,21 @@ interface DashboardItem {
   agency?: { name: string } | null;
 }
 
+// ✅ Interface pour les 4 périodes calculées par le Wrapper
+interface PeriodStats {
+  "24h": number;
+  "7 jours": number;
+  "30 jours": number;
+  Tout: number;
+}
+
 interface Props<T> {
   title: string;
   data: T[];
   type: "agent" | "agency-physical" | "agency-online";
   isEmpty?: boolean;
   onEdit?: (item: T) => void;
-  liveVisits?: Record<string, number>; // ✅ Bien déclaré ici
+  liveVisits?: Record<string, PeriodStats>; // ✅ Reçoit l'objet multi-périodes
 }
 
 export default function DashboardTable<T extends DashboardItem>({
@@ -45,7 +54,7 @@ export default function DashboardTable<T extends DashboardItem>({
   type,
   isEmpty,
   onEdit,
-  liveVisits = {}, // ✅ On l'extrait ici avec une valeur par défaut
+  liveVisits = {},
 }: Props<T>) {
   const [isPending, startTransition] = useTransition();
   const [period, setPeriod] = useState("Tout");
@@ -64,16 +73,16 @@ export default function DashboardTable<T extends DashboardItem>({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- LOGIQUE DE TRI ---
+  // --- LOGIQUE DE TRI DYNAMIQUE BASÉE SUR LA PÉRIODE SÉLECTIONNÉE ---
   const sortedData = useMemo(() => {
     const list = [...data];
-    // On trie par visites réelles si disponibles, sinon par ID
     return list.sort((a, b) => {
-      const visitsA = liveVisits[a.id] || 0;
-      const visitsB = liveVisits[b.id] || 0;
+      // ✅ On récupère la valeur spécifique à la période sélectionnée pour chaque item
+      const visitsA = liveVisits[a.id]?.[period as keyof PeriodStats] || 0;
+      const visitsB = liveVisits[b.id]?.[period as keyof PeriodStats] || 0;
       return visitsB - visitsA;
     });
-  }, [data, liveVisits]); // ✅ Dépend de liveVisits pour se réorganiser en direct
+  }, [data, liveVisits, period]);
 
   // --- LOGIQUE EXPORT CSV ---
   const handleExportCSV = () => {
@@ -81,7 +90,7 @@ export default function DashboardTable<T extends DashboardItem>({
       type === "agent" ? "ID,Prenom,Nom,Agence,Visites\n" : "ID,Nom,Visites\n";
     const rows = sortedData
       .map((item) => {
-        const v = liveVisits[item.id] || 0;
+        const v = liveVisits[item.id]?.[period as keyof PeriodStats] || 0;
         return type === "agent"
           ? `${item.id},${item.firstname},${item.lastname},${
               item.agency?.name || "N/A"
@@ -95,7 +104,7 @@ export default function DashboardTable<T extends DashboardItem>({
     });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `export-${type}.csv`);
+    link.setAttribute("download", `export-${type}-${period}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -111,12 +120,20 @@ export default function DashboardTable<T extends DashboardItem>({
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer ce site définitivement ?")) return;
+  // ✅ LOGIQUE DE SUPPRESSION AMÉLIORÉE
+  const handleDelete = async (item: T) => {
+    const name =
+      type === "agent" ? `${item.firstname} ${item.lastname}` : item.name;
+    if (!confirm(`Supprimer définitivement le site de "${name}" ?`)) return;
+
     startTransition(async () => {
-      const result = await deleteAgent(id);
+      const result =
+        type === "agent"
+          ? await deleteAgent(item.id)
+          : await deleteAgency(item.id);
+
       if (result.success) toast.success("Site supprimé");
-      else toast.error(result.error);
+      else toast.error(result.error || "Erreur lors de la suppression");
     });
   };
 
@@ -171,7 +188,7 @@ export default function DashboardTable<T extends DashboardItem>({
           </div>
         </div>
 
-        {/* SÉLECTEUR DE PÉRIODE (Note: Pour l'instant, liveVisits est calé sur "Tout" ou "Aujourd'hui") */}
+        {/* SÉLECTEUR DE PÉRIODE RÉALISTE */}
         <div className="flex bg-white/5 p-1 rounded-lg">
           {periods.map((p: string) => (
             <button
@@ -213,8 +230,9 @@ export default function DashboardTable<T extends DashboardItem>({
             </thead>
             <tbody className="text-xs">
               {sortedData.map((item) => {
-                // ✅ On utilise la vraie valeur venant de liveVisits
-                const currentVisits = liveVisits[item.id] || 0;
+                // ✅ Accès dynamique à la période sélectionnée
+                const currentVisits =
+                  liveVisits[item.id]?.[period as keyof PeriodStats] || 0;
 
                 return (
                   <tr
@@ -258,7 +276,7 @@ export default function DashboardTable<T extends DashboardItem>({
                           <Edit size={14} />
                         </button>
                         <button
-                          onClick={() => handleDelete(item.id)}
+                          onClick={() => handleDelete(item)}
                           className="p-1.5 hover:bg-white/10 rounded-lg hover:text-red-400 transition"
                         >
                           <Trash2 size={14} />
