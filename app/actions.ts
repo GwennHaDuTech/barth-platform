@@ -3,8 +3,10 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+// ✅ IMPORT DES LOGS
+import { logActivity } from "@/app/actions/logs";
 
-// --- 1. SCHÉMA DE VALIDATION (Mis à jour) ---
+// --- 1. SCHÉMA DE VALIDATION ---
 const AgentFormSchema = z.object({
   firstname: z.string().min(2, "Le prénom est requis"),
   lastname: z.string().min(2, "Le nom est requis"),
@@ -12,11 +14,7 @@ const AgentFormSchema = z.object({
   phone: z.string().min(10, "Téléphone invalide"),
   photo: z.string().min(1, "La photo est requise"),
   city: z.string().min(2, "Ville requise"),
-
-  // ✅ AJOUT : L'agence est maintenant requise ou du moins validée
   agencyId: z.string().min(1, "Veuillez sélectionner une agence"),
-
-  // Champs optionnels
   zipCode: z.string().optional().or(z.literal("")),
   cityPhoto: z.string().optional().or(z.literal("")),
   secondarySector: z.string().optional().or(z.literal("")),
@@ -43,7 +41,6 @@ export async function createAgent(formData: FormData) {
       linkedin: formData.get("linkedin"),
       tiktok: formData.get("tiktok"),
       bio: formData.get("bio"),
-      // ✅ AJOUT : Récupération de l'ID de l'agence
       agencyId: formData.get("agencyId"),
     };
 
@@ -51,6 +48,13 @@ export async function createAgent(formData: FormData) {
 
     if (!validated.success) {
       console.error("Erreur validation:", validated.error.flatten());
+      await logActivity(
+        "CREATE",
+        "AGENT",
+        `Echec création agent ${rawData.lastname}`,
+        "FAILURE",
+        "Validation invalide"
+      );
       return {
         success: false,
         error: "Données invalides. Vérifiez les champs.",
@@ -59,7 +63,6 @@ export async function createAgent(formData: FormData) {
 
     const data = validated.data;
 
-    // Génération du Slug
     let slug = `${data.firstname}-${data.lastname}`
       .toLowerCase()
       .normalize("NFD")
@@ -88,15 +91,34 @@ export async function createAgent(formData: FormData) {
         tiktok: data.tiktok || null,
         bio: data.bio || null,
         slug: slug,
-        // ✅ AJOUT : Liaison avec l'agence
         agencyId: data.agencyId,
       },
     });
 
+    // 🟢 LOG SUCCÈS
+    await logActivity(
+      "CREATE",
+      "AGENT",
+      `Nouveau site agent : ${data.firstname} ${data.lastname}`,
+      "SUCCESS"
+    );
+
     revalidatePath("/dashboard", "layout");
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Erreur createAgent:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
+
+    // 🔴 LOG ERREUR
+    await logActivity(
+      "CREATE",
+      "AGENT",
+      `Erreur création agent`,
+      "FAILURE",
+      errorMessage
+    );
+
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {
         return { success: false, error: "Cet email ou ce nom existe déjà." };
@@ -123,13 +145,19 @@ export async function updateAgent(id: string, formData: FormData) {
       linkedin: formData.get("linkedin"),
       tiktok: formData.get("tiktok"),
       bio: formData.get("bio"),
-      // ✅ AJOUT
       agencyId: formData.get("agencyId"),
     };
 
     const validated = AgentFormSchema.safeParse(rawData);
 
     if (!validated.success) {
+      await logActivity(
+        "UPDATE",
+        "AGENT",
+        `Echec modif agent ID ${id}`,
+        "FAILURE",
+        "Validation invalide"
+      );
       return {
         success: false,
         error: "Données invalides pour la mise à jour.",
@@ -152,15 +180,33 @@ export async function updateAgent(id: string, formData: FormData) {
         linkedin: validated.data.linkedin || null,
         tiktok: validated.data.tiktok || null,
         bio: validated.data.bio || null,
-        // ✅ AJOUT : Mise à jour de l'agence
         agencyId: validated.data.agencyId,
       },
     });
 
+    // 🟢 LOG SUCCÈS
+    await logActivity(
+      "UPDATE",
+      "AGENT",
+      `Mise à jour site agent : ${validated.data.firstname} ${validated.data.lastname}`,
+      "SUCCESS"
+    );
+
     revalidatePath("/dashboard", "layout");
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
     console.error("Erreur Update:", error);
+
+    // 🔴 LOG ERREUR
+    await logActivity(
+      "UPDATE",
+      "AGENT",
+      `Erreur modif agent ID ${id}`,
+      "FAILURE",
+      errorMessage
+    );
     return { success: false, error: "Impossible de mettre à jour l'agent." };
   }
 }
@@ -178,7 +224,7 @@ export async function checkAgentDuplication(
       },
     });
     return !!existing;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Erreur vérification doublon:", error);
     return false;
   }
@@ -187,184 +233,52 @@ export async function checkAgentDuplication(
 // --- 5. SUPPRESSION ---
 export async function deleteAgent(agentId: string) {
   try {
+    const agent = await prisma.agent.findUnique({
+      where: { id: agentId },
+      select: { lastname: true },
+    });
+
     await prisma.agent.delete({
       where: { id: agentId },
     });
+
+    // 🟢 LOG SUCCÈS
+    await logActivity(
+      "DELETE",
+      "AGENT",
+      `Suppression site agent : ${agent?.lastname || agentId}`,
+      "SUCCESS"
+    );
+
     revalidatePath("/dashboard", "layout");
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
     console.error("Erreur suppression:", error);
+
+    // 🔴 LOG ERREUR
+    await logActivity(
+      "DELETE",
+      "AGENT",
+      `Echec suppression agent ID ${agentId}`,
+      "FAILURE",
+      errorMessage
+    );
     return { success: false, error: "Impossible de supprimer cet agent." };
   }
 }
 
-// --- 6. RÉCUPÉRATION DES AGENCES (Nouveau pour le Select) ---
+// --- 6. RÉCUPÉRATION DES AGENCES ---
 export async function getAgencies() {
   try {
     const agencies = await prisma.agency.findMany({
-      select: {
-        id: true,
-        name: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
     });
     return agencies;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Erreur getAgencies:", error);
     return [];
-  }
-}
-
-// --- 7. GESTION DES AGENCES ---
-
-const AgencySchema = z.object({
-  name: z.string().min(2, "Le nom est requis"),
-  // ✅ AJOUT DES NOUVEAUX CHAMPS
-  city: z.string().min(2, "La ville est requise"),
-  zipCode: z.string().min(4, "Code postal invalide"),
-  address: z.string().min(5, "L'adresse est requise"),
-  email: z.string().email("Email invalide"),
-
-  phone: z.string().optional().or(z.literal("")),
-  // On rend la photo optionnelle pour l'instant si tu ne l'envoies pas encore
-  photo: z.string().optional().or(z.literal("")),
-  managerId: z.string().optional().or(z.literal("")),
-});
-
-export async function createAgency(formData: FormData) {
-  try {
-    const rawData = {
-      name: formData.get("name") as string,
-      city: formData.get("city") as string,
-      zipCode: formData.get("zipCode") as string,
-      address: formData.get("address") as string,
-      email: formData.get("email") as string,
-      phone: (formData.get("phone") as string) || "",
-      photo: (formData.get("photo") as string) || "",
-      managerId: (formData.get("managerId") as string) || "",
-    };
-
-    const validated = AgencySchema.safeParse(rawData);
-
-    if (!validated.success) {
-      console.error("Erreur Zod:", validated.error.flatten());
-      return {
-        success: false,
-        error: "Données invalides (champs manquants ou format incorrect).",
-      };
-    }
-
-    const data = validated.data;
-
-    // Vérification email unique
-    const existing = await prisma.agency.findUnique({
-      where: { email: data.email },
-    });
-
-    if (existing) {
-      return {
-        success: false,
-        error: "Cet email est déjà utilisé par une autre agence.",
-      };
-    }
-
-    // Création de l'agence
-    await prisma.agency.create({
-      data: {
-        name: data.name,
-        city: data.city,
-        zipCode: data.zipCode,
-        address: data.address,
-        email: data.email,
-        phone: data.phone || null,
-        photo: data.photo || "https://placehold.co/600x400?text=Agence", // Image par défaut si vide
-        // Liaison Responsable
-        manager: data.managerId
-          ? { connect: { id: data.managerId } }
-          : undefined,
-      },
-    });
-
-    revalidatePath("/dashboard", "layout");
-    revalidatePath("/dashboard", "layout");
-    return { success: true };
-  } catch (error) {
-    console.error("Erreur createAgency:", error);
-    return { success: false, error: "Erreur technique lors de la création." };
-  }
-}
-
-// --- SUPPRESSION D'AGENCE ---
-export async function deleteAgency(agencyId: string) {
-  try {
-    // 1. Suppression dans la base de données
-    await prisma.agency.delete({
-      where: {
-        id: agencyId,
-      },
-    });
-    // 2. Rafraîchir la page des agences pour voir le changement immédiat
-    revalidatePath("/dashboard", "layout");
-
-    return { success: true };
-  } catch (error) {
-    console.error("Erreur lors de la suppression de l'agence:", error);
-    return { success: false, error: "Impossible de supprimer l'agence." };
-  }
-}
-
-export async function trackVisit(agentId?: string, agencyId?: string) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  try {
-    // On utilise $transaction pour s'assurer que les deux écritures réussissent ou échouent ensemble
-    await prisma.$transaction(async (tx) => {
-      // 1. Mise à jour de la statistique GLOBALE (pour le graphique du dashboard)
-      await tx.analytics.upsert({
-        where: {
-          date_agentId_agencyId: {
-            date: today,
-            agentId: "global",
-            agencyId: "global",
-          },
-        },
-        update: { visits: { increment: 1 } },
-        create: {
-          date: today,
-          agentId: "global",
-          agencyId: "global",
-          visits: 1,
-        },
-      });
-
-      // 2. Mise à jour de la statistique SPÉCIFIQUE (si un ID est fourni)
-      // Cela te permettra plus tard de voir les stats d'un agent précis
-      if (agentId || agencyId) {
-        await tx.analytics.upsert({
-          where: {
-            date_agentId_agencyId: {
-              date: today,
-              agentId: agentId || "none", // On évite "global" ici pour ne pas mélanger
-              agencyId: agencyId || "none",
-            },
-          },
-          update: { visits: { increment: 1 } },
-          create: {
-            date: today,
-            agentId: agentId || "none",
-            agencyId: agencyId || "none",
-            visits: 1,
-          },
-        });
-      }
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error("Erreur de suivi analytics:", error);
-    return { success: false, error: "Analytics error" };
   }
 }

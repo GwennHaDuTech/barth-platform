@@ -4,109 +4,130 @@ import prisma from "@/lib/prisma";
 import { AdminRole } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { Resend } from "resend";
+// ✅ IMPORT DES LOGS
+import { logActivity } from "@/app/actions/logs";
 
-// Initialisation de Resend
-// Si la clé n'est pas présente, cela ne plantera pas l'appli mais les mails ne partiront pas (utile en dev sans clé)
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 const SENDER_EMAIL =
   "Barth Platform <onboarding@paulbroussouloux-barthimmobilier.fr>";
 
 // --- UTILITAIRES ---
-
-// Fonction pour récupérer les emails de l'équipe (sauf celui concerné par l'action)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function getTeamEmails(excludeEmail: string) {
-  const admins = await prisma.admin.findMany({
-    select: { email: true },
-  });
-  // On filtre pour ne pas envoyer la notif à la personne concernée ni aux doublons
+  const admins = await prisma.admin.findMany({ select: { email: true } });
   return admins.map((a) => a.email).filter((e) => e !== excludeEmail);
 }
 
 // --- ACTIONS ---
 
-// 1. Récupérer tous les admins
 export async function getAdmins() {
   try {
-    return await prisma.admin.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    return await prisma.admin.findMany({ orderBy: { createdAt: "desc" } });
   } catch (error) {
     console.error("Erreur getAdmins:", error);
     return [];
   }
 }
 
-// 2. Ajouter un admin
 export async function createAdmin(formData: FormData, notifyTeam: boolean) {
-  try {
-    const email = (formData.get("email") as string).trim().toLowerCase();
-    const firstname = formData.get("firstname") as string;
-    const lastname = formData.get("lastname") as string;
-    const role = formData.get("role") as AdminRole;
+  const email = (formData.get("email") as string).trim().toLowerCase();
+  const firstname = formData.get("firstname") as string;
+  const lastname = formData.get("lastname") as string;
+  const role = formData.get("role") as AdminRole;
 
-    if (!email) return { success: false, error: "Email requis" };
+  try {
+    // const loginUrl = "https://barth-platform.vercel.app"; // Utilisé dans le template HTML
+    const dashboardUrl = "https://barth-platform.vercel.app/dashboard";
+
+    if (!email) {
+      await logActivity(
+        "CREATE",
+        "ADMIN",
+        `Tentative ajout admin sans email`,
+        "FAILURE",
+        "Email requis"
+      );
+      return { success: false, error: "Email requis" };
+    }
 
     const existing = await prisma.admin.findUnique({ where: { email } });
-    if (existing) return { success: false, error: "Cet email est déjà admin." };
+    if (existing) {
+      await logActivity(
+        "CREATE",
+        "ADMIN",
+        `Tentative ajout doublon ${email}`,
+        "FAILURE",
+        "Email déjà utilisé"
+      );
+      return { success: false, error: "Cet email est déjà admin." };
+    }
 
     // A. Création en BDD
     await prisma.admin.create({
-      data: {
-        email,
-        firstname,
-        lastname,
-        role: role || "ADMIN",
-      },
+      data: { email, firstname, lastname, role: role || "ADMIN" },
     });
 
+    // 🟢 LOG SUCCÈS
+    await logActivity(
+      "CREATE",
+      "ADMIN",
+      `Ajout admin : ${firstname} ${lastname} (${role})`,
+      "SUCCESS"
+    );
+
     if (resend) {
-      // B. Mail de bienvenue au NOUVEL admin (Toujours)
+      // B. Mail de bienvenue
       await resend.emails.send({
         from: SENDER_EMAIL,
         to: email,
         subject: "Accès administrateur accordé - Barth Platform",
-        html: `<p>Bienvenue ${firstname}, votre accès est actif.</p>`,
+        // Remplace par ton HTML Dark Premium complet ici
+        html: `<p>Bienvenue ${firstname}</p>`,
       });
 
-      // C. Logique de notification équipe / Super Admin
+      // C. Notification équipe
       const allAdmins = await prisma.admin.findMany({
         select: { email: true, role: true },
       });
-
-      // On définit les destinataires :
-      // - Le Super Admin (toujours)
-      // - Les autres (seulement si notifyTeam est vrai)
       const recipients = allAdmins
-        .filter((admin) => {
-          if (admin.email === email) return false; // Ne pas s'envoyer à soi-même
-          if (admin.role === "SUPER_ADMIN") return true; // Toujours le Super Admin
-          return notifyTeam; // Les autres seulement si case cochée
-        })
-        .map((admin) => admin.email);
+        .filter(
+          (a) => a.email !== email && (a.role === "SUPER_ADMIN" || notifyTeam)
+        )
+        .map((a) => a.email);
 
       if (recipients.length > 0) {
         await resend.emails.send({
           from: SENDER_EMAIL,
           to: recipients,
           subject: "[Sécurité] Nouvel administrateur ajouté",
-          html: `<p>L'administrateur <strong>${firstname} ${lastname}</strong> (${email}) a été ajouté.</p>`,
+          // Remplace par ton HTML Dark Premium complet ici
+          html: `<p>Nouvel admin ajouté : ${firstname} ${lastname} <a href="${dashboardUrl}">Voir</a></p>`,
         });
       }
     }
 
     revalidatePath("/dashboard");
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
     console.error(error);
+
+    // 🔴 LOG ERREUR TECHNIQUE
+    await logActivity(
+      "CREATE",
+      "ADMIN",
+      `Erreur ajout admin ${email}`,
+      "FAILURE",
+      errorMessage
+    );
     return { success: false, error: "Erreur serveur." };
   }
 }
 
-// 3. Supprimer un admin
 export async function deleteAdmin(
   adminId: string,
   adminEmail: string,
@@ -114,6 +135,16 @@ export async function deleteAdmin(
 ) {
   try {
     await prisma.admin.delete({ where: { id: adminId } });
+
+    // 🟢 LOG SUCCÈS
+    await logActivity(
+      "DELETE",
+      "ADMIN",
+      `Suppression admin : ${adminEmail}`,
+      "SUCCESS"
+    );
+
+    // const dashboardUrl = "https://barth-platform.vercel.app/dashboard"; // Utilisé dans le HTML
 
     if (resend) {
       const allAdmins = await prisma.admin.findMany({
@@ -132,15 +163,27 @@ export async function deleteAdmin(
           from: SENDER_EMAIL,
           to: recipients,
           subject: "[Sécurité] Administrateur supprimé",
-          html: `<p>L'accès de <strong>${adminEmail}</strong> a été révoqué.</p>`,
+          // Remplace par ton HTML Dark Premium complet ici
+          html: `<p>Admin supprimé : ${adminEmail}</p>`,
         });
       }
     }
 
     revalidatePath("/dashboard");
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
     console.error(error);
+
+    // 🔴 LOG ERREUR
+    await logActivity(
+      "DELETE",
+      "ADMIN",
+      `Erreur suppression admin ${adminEmail}`,
+      "FAILURE",
+      errorMessage
+    );
     return { success: false, error: "Erreur serveur." };
   }
 }

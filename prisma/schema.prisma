@@ -95,3 +95,16 @@ model Analytics {
   @@unique([date, agentId, agencyId]) // Évite les doublons pour un même jour
 }
 
+model ActivityLog {
+  id          String   @id @default(cuid())
+  
+  action      String   // Ex: "CREATE", "UPDATE", "DELETE"
+  entity      String   // Ex: "Agent", "Agency", "Admin"
+  details     String   // Ex: "Création de l'agent Batman"
+  
+  status      String   // "SUCCESS" ou "FAILURE"
+  errorMessage String? // Le détail de l'erreur si FAILURE
+  
+  author      String   // "Prénom Nom" de l'admin qui a fait l'action
+  createdAt   DateTime @default(now())
+}

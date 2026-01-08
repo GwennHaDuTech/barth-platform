@@ -3,18 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, Building2, Settings } from "lucide-react"; // LogOut n'était pas utilisé dans le JSX, je l'ai laissé au cas où
+// ✅ AJOUT DE L'ICÔNE ACTIVITY
+import { Home, Users, Building2, Settings, Activity } from "lucide-react";
 import { useClerk, useUser } from "@clerk/nextjs";
 import styles from "./Sidebar.module.css";
-// ✅ IMPORT DU PANNEAU ADMIN
 import AdminPanel from "@/components/AdminPanel";
 
 const Sidebar = () => {
   const pathname = usePathname();
   const { user } = useUser();
   const { signOut } = useClerk();
-
-  // ✅ ÉTAT POUR LA MODALE
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
 
   const handleLogout = () => {
@@ -29,14 +27,13 @@ const Sidebar = () => {
 
   return (
     <>
-      {/* ✅ AFFICHAGE CONDITIONNEL DU PANNEAU */}
       {isAdminPanelOpen && (
         <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />
       )}
 
       <div className={styles.sidebarContainer}>
         <aside className={styles.sidebar}>
-          {/* --- HEADER : LOGOUT + USER INFO --- */}
+          {/* --- HEADER --- */}
           <div className={styles.header}>
             <button
               onClick={handleLogout}
@@ -106,10 +103,23 @@ const Sidebar = () => {
               <span className={styles.linkText}>Agences</span>
             </Link>
 
-            {/* ✅ BOUTON RÉGLAGES (Au lieu de Link) */}
+            {/* ✅ NOUVEAU LIEN ACTIVITÉS */}
+            <Link
+              href="/dashboard/logs"
+              className={`${styles.navLink} ${
+                isActive("/dashboard/logs") ? styles.active : ""
+              }`}
+            >
+              <span className={styles.navIcon}>
+                <Activity size={22} />
+              </span>
+              <span className={styles.linkText}>Activités</span>
+            </Link>
+
+            {/* BOUTON RÉGLAGES */}
             <button
               onClick={() => setIsAdminPanelOpen(true)}
-              className={`${styles.navLink} w-full text-left`} // Ajout de w-full text-left pour garder le style bouton
+              className={`${styles.navLink} w-full text-left`}
             >
               <span className={styles.navIcon}>
                 <Settings size={22} />
