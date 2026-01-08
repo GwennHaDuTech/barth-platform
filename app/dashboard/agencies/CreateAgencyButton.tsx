@@ -33,7 +33,7 @@ export default function CreateAgencyButton({
 
       {isOpen && (
         <CreateAgencyForm
-          closeModal={() => setIsOpen(false)}
+          onClose={() => setIsOpen(false)}
           // ✅ C'EST ICI LA CLÉ : On transmet la liste reçue au formulaire enfant
           availableAgents={availableAgents}
         />
