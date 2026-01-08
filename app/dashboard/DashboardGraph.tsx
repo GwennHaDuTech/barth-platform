@@ -16,6 +16,7 @@ interface DataPoint {
   visits: number;
 }
 
+// Données simulées pour les autres périodes
 const dataSets: Record<string, DataPoint[]> = {
   "24h": [
     { name: "00h", visits: 40 },
@@ -24,16 +25,6 @@ const dataSets: Record<string, DataPoint[]> = {
     { name: "12h", visits: 400 },
     { name: "16h", visits: 320 },
     { name: "20h", visits: 500 },
-    { name: "23h", visits: 280 },
-  ],
-  "7 jours": [
-    { name: "Lun", visits: 400 },
-    { name: "Mar", visits: 300 },
-    { name: "Mer", visits: 600 },
-    { name: "Jeu", visits: 800 },
-    { name: "Ven", visits: 500 },
-    { name: "Sam", visits: 900 },
-    { name: "Dim", visits: 1100 },
   ],
   "1 mois": [
     { name: "Sem 1", visits: 2500 },
@@ -48,18 +39,23 @@ const dataSets: Record<string, DataPoint[]> = {
   ],
 };
 
-interface Props {
+interface DashboardGraphProps {
   period: string;
+  data: DataPoint[]; // ✅ Les données réelles venant du serveur
 }
 
-export default function DashboardGraph({ period }: Props) {
-  const currentData = dataSets[period] || dataSets["Tout"];
+export default function DashboardGraph({ period, data }: DashboardGraphProps) {
+  // ✅ LOGIQUE DE SELECTION DES DONNÉES
+  // Si on est sur "7 jours", on prend 'data' (les stats réelles),
+  // sinon on prend dans 'dataSets' ou on replie sur 'data'.
+  const displayData = period === "7 jours" ? data : dataSets[period] || data;
 
   return (
     <div className="w-full h-full">
       <ResponsiveContainer width="100%" height="100%">
+        {/* ✅ On utilise bien displayData ici */}
         <AreaChart
-          data={currentData}
+          data={displayData}
           margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
         >
           <defs>
@@ -100,7 +96,7 @@ export default function DashboardGraph({ period }: Props) {
             type="monotone"
             dataKey="visits"
             stroke="#bf9b30"
-            strokeWidth={3} // On épaissit le trait
+            strokeWidth={3}
             fillOpacity={1}
             fill="url(#colorVisits)"
             animationDuration={1000}

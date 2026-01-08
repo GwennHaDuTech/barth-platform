@@ -17,23 +17,55 @@ interface AgencyItem {
 }
 
 export default async function DashboardPage() {
-  // 1. Récupération des agents (Colonne 1)
+  // 1. Récupération des agents et agences
   const agents: AgentWithAgency[] = await prisma.agent.findMany({
     include: { agency: true },
     orderBy: { lastname: "asc" },
   });
 
-  // 2. Récupération de toutes les agences (Colonne 2 et Sélecteur Formulaire)
   const allAgencies = await prisma.agency.findMany({
     orderBy: { name: "asc" },
   });
 
-  // On sépare les données pour la clarté, même si ici on passe tout à la colonne physique
-  // Plus tard, tu pourras filtrer si tu as un champ 'type' dans ta table Agency
   const physicalAgencies: AgencyItem[] = allAgencies.map((agency) => ({
     id: agency.id,
     name: agency.name,
   }));
+
+  // 2. LOGIQUE ANALYTICS RÉELLE (7 derniers jours)
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  const stats = await prisma.analytics.findMany({
+    where: {
+      date: { gte: sevenDaysAgo },
+    },
+    orderBy: { date: "asc" },
+  });
+
+  // 3. CALCUL DU KPI VISITES 24H (Somme des visites du jour le plus récent)
+  const visitsLast24h = stats.length > 0 ? stats[stats.length - 1].visits : 0;
+
+  // 4. FORMATAGE POUR RECHARTS
+  const chartData = stats.map((s) => ({
+    name: s.date.toLocaleDateString("fr-FR", { weekday: "short" }),
+    visits: s.visits,
+  }));
+
+  // Fallback si pas de données pour éviter un graph vide
+  const finalChartData =
+    chartData.length > 0
+      ? chartData
+      : [
+          { name: "Lun", visits: 0 },
+          { name: "Mar", visits: 0 },
+          { name: "Mer", visits: 0 },
+          { name: "Jeu", visits: 0 },
+          { name: "Ven", visits: 0 },
+          { name: "Sam", visits: 0 },
+          { name: "Dim", visits: 0 },
+        ];
 
   return (
     <div className="relative h-screen overflow-hidden bg-transparent text-white p-6">
@@ -48,18 +80,23 @@ export default async function DashboardPage() {
               {agents.length + physicalAgencies.length}
             </span>
           </GlassCard>
+
           <GlassCard className="flex flex-col justify-center p-4">
             <span className="text-gray-400 text-[10px] uppercase tracking-widest font-medium">
               Visites 24h
             </span>
-            <span className="text-2xl font-light text-barth-gold">1,284</span>
+            <span className="text-2xl font-light text-barth-gold">
+              {visitsLast24h.toLocaleString()}
+            </span>
           </GlassCard>
+
           <GlassCard className="flex flex-col justify-center p-4">
             <span className="text-gray-400 text-[10px] uppercase tracking-widest font-medium">
               Taux Rebond
             </span>
             <span className="text-2xl font-light text-barth-gold">24%</span>
           </GlassCard>
+
           <GlassCard className="flex flex-col justify-center p-4 border-barth-gold/20">
             <span className="text-gray-400 text-[10px] uppercase tracking-widest font-medium">
               Statut
@@ -73,12 +110,12 @@ export default async function DashboardPage() {
           </GlassCard>
         </div>
 
-        {/* MIDDLE & BOTTOM SECTION */}
-        {/* On passe allAgencies pour le formulaire et physicalAgencies pour le tableau 2 */}
+        {/* PASSAGE DES DONNÉES AU WRAPPER */}
         <DashboardClientWrapper
           initialAgents={agents}
           physicalAgencies={physicalAgencies}
           availableAgencies={allAgencies}
+          realTimeStats={finalChartData} // ✅ On envoie les vraies stats
         />
       </div>
     </div>

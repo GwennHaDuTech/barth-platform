@@ -11,23 +11,124 @@ import {
   ArrowRight,
   User,
 } from "lucide-react";
+import TrackingAgencyClient from "./TrackingAgencyClient";
 
 export const dynamic = "force-dynamic";
 
+// ✅ 1. Définition des interfaces pour supprimer les "any"
+interface AgentData {
+  id: string;
+  firstname: string | null;
+  lastname: string | null;
+  photo: string | null;
+  phone: string | null;
+  email: string | null;
+  instagram: string | null;
+  linkedin: string | null;
+  slug: string | null;
+}
+
 interface Props {
-  // CORRECTION : params est une Promise maintenant
   params: Promise<{
     id: string;
   }>;
 }
 
+// ✅ 2. Déplacement de AgentCard à l'EXTÉRIEUR du composant principal
+const AgentCard = ({
+  agent,
+  isManager = false,
+}: {
+  agent: AgentData;
+  isManager?: boolean;
+}) => (
+  <div
+    className={`group relative bg-[#0f0f0f] border border-white/10 rounded-2xl overflow-hidden hover:border-barth-gold/50 transition duration-500 ${
+      isManager ? "md:flex md:items-center md:gap-6 md:p-6" : "flex flex-col"
+    }`}
+  >
+    <div
+      className={`relative overflow-hidden ${
+        isManager
+          ? "w-full md:w-48 h-64 md:h-48 shrink-0 rounded-xl"
+          : "w-full h-80"
+      }`}
+    >
+      {agent.photo ? (
+        <Image
+          src={agent.photo}
+          alt={`${agent.firstname} ${agent.lastname}`}
+          fill
+          className="object-cover group-hover:scale-105 transition duration-700"
+        />
+      ) : (
+        <div className="w-full h-full bg-white/5 flex items-center justify-center text-gray-600">
+          <User size={48} />
+        </div>
+      )}
+    </div>
+
+    <div className={`${isManager ? "p-6 md:p-0 flex-1" : "p-5"}`}>
+      {isManager && (
+        <span className="inline-block px-3 py-1 mb-2 text-[10px] font-bold tracking-widest text-black bg-barth-gold rounded-full uppercase">
+          Responsable dagence
+        </span>
+      )}
+
+      <h3 className="text-xl font-medium text-white">
+        {agent.firstname} <span className="font-bold">{agent.lastname}</span>
+      </h3>
+
+      <div className="flex items-center gap-4 mt-4 pt-4 border-t border-white/10">
+        {agent.phone && (
+          <a
+            href={`tel:${agent.phone}`}
+            className="text-gray-400 hover:text-barth-gold transition"
+          >
+            <Phone size={18} />
+          </a>
+        )}
+        <a
+          href={`mailto:${agent.email}`}
+          className="text-gray-400 hover:text-barth-gold transition"
+        >
+          <Mail size={18} />
+        </a>
+        {agent.instagram && (
+          <a
+            href={agent.instagram}
+            target="_blank"
+            className="text-gray-400 hover:text-pink-500 transition"
+          >
+            <Instagram size={18} />
+          </a>
+        )}
+        {agent.linkedin && (
+          <a
+            href={agent.linkedin}
+            target="_blank"
+            className="text-gray-400 hover:text-blue-500 transition"
+          >
+            <Linkedin size={18} />
+          </a>
+        )}
+      </div>
+
+      <Link
+        href={`/agent/${agent.slug}`}
+        className="mt-5 inline-flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wider hover:text-barth-gold transition"
+      >
+        Voir le profil <ArrowRight size={14} />
+      </Link>
+    </div>
+  </div>
+);
+
 export default async function AgencyPublicPage({ params }: Props) {
-  // CORRECTION : On attend la résolution des paramètres
   const { id } = await params;
 
-  // 1. Récupération des données de l'agence avec l'ID récupéré
   const agency = await prisma.agency.findUnique({
-    where: { id: id }, // On utilise la variable 'id' extraite
+    where: { id: id },
     include: {
       manager: true,
       agents: {
@@ -40,98 +141,10 @@ export default async function AgencyPublicPage({ params }: Props) {
     notFound();
   }
 
-  // --- COMPOSANTS UI INTERNES ---
-  const AgentCard = ({
-    agent,
-    isManager = false,
-  }: {
-    agent: any;
-    isManager?: boolean;
-  }) => (
-    <div
-      className={`group relative bg-[#0f0f0f] border border-white/10 rounded-2xl overflow-hidden hover:border-barth-gold/50 transition duration-500 ${
-        isManager ? "md:flex md:items-center md:gap-6 md:p-6" : "flex flex-col"
-      }`}
-    >
-      <div
-        className={`relative overflow-hidden ${
-          isManager
-            ? "w-full md:w-48 h-64 md:h-48 shrink-0 rounded-xl"
-            : "w-full h-80"
-        }`}
-      >
-        {agent.photo ? (
-          <Image
-            src={agent.photo}
-            alt={`${agent.firstname} ${agent.lastname}`}
-            fill
-            className="object-cover group-hover:scale-105 transition duration-700"
-          />
-        ) : (
-          <div className="w-full h-full bg-white/5 flex items-center justify-center text-gray-600">
-            <User size={48} />
-          </div>
-        )}
-      </div>
-
-      <div className={`${isManager ? "p-6 md:p-0 flex-1" : "p-5"}`}>
-        {isManager && (
-          <span className="inline-block px-3 py-1 mb-2 text-[10px] font-bold tracking-widest text-barth-dark bg-barth-gold rounded-full uppercase">
-            Responsable d'agence
-          </span>
-        )}
-
-        <h3 className="text-xl font-medium text-white">
-          {agent.firstname} <span className="font-bold">{agent.lastname}</span>
-        </h3>
-
-        <div className="flex items-center gap-4 mt-4 pt-4 border-t border-white/10">
-          {agent.phone && (
-            <a
-              href={`tel:${agent.phone}`}
-              className="text-gray-400 hover:text-barth-gold transition"
-            >
-              <Phone size={18} />
-            </a>
-          )}
-          <a
-            href={`mailto:${agent.email}`}
-            className="text-gray-400 hover:text-barth-gold transition"
-          >
-            <Mail size={18} />
-          </a>
-          {agent.instagram && (
-            <a
-              href={agent.instagram}
-              target="_blank"
-              className="text-gray-400 hover:text-pink-500 transition"
-            >
-              <Instagram size={18} />
-            </a>
-          )}
-          {agent.linkedin && (
-            <a
-              href={agent.linkedin}
-              target="_blank"
-              className="text-gray-400 hover:text-blue-500 transition"
-            >
-              <Linkedin size={18} />
-            </a>
-          )}
-        </div>
-
-        <Link
-          href={`/agent/${agent.slug}`}
-          className="mt-5 inline-flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wider hover:text-barth-gold transition"
-        >
-          Voir le profil <ArrowRight size={14} />
-        </Link>
-      </div>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-barth-gold selection:text-black">
+      <TrackingAgencyClient agencyId={agency.id} />
+
       <header className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="text-2xl font-bold tracking-tighter">
@@ -180,8 +193,7 @@ export default async function AgencyPublicPage({ params }: Props) {
             <span className="text-barth-gold font-bold">{agency.name}</span>
           </h1>
           <p className="text-xl text-gray-300 font-light max-w-2xl mx-auto">
-            L'excellence immobilière au cœur de votre région. Une équipe dédiée
-            pour concrétiser vos projets de vie.
+            Lexcellence immobilière au cœur de votre région.
           </p>
           {agency.address && (
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur border border-white/10 text-sm">
@@ -199,7 +211,10 @@ export default async function AgencyPublicPage({ params }: Props) {
               <h2 className="text-3xl font-light mb-2">Le Responsable</h2>
               <div className="w-12 h-1 bg-barth-gold mx-auto rounded-full" />
             </div>
-            <AgentCard agent={agency.manager} isManager={true} />
+            <AgentCard
+              agent={agency.manager as unknown as AgentData}
+              isManager={true}
+            />
           </div>
         </section>
       )}
@@ -225,52 +240,40 @@ export default async function AgencyPublicPage({ params }: Props) {
               {agency.agents
                 .filter((a) => a.id !== agency.managerId)
                 .map((agent) => (
-                  <AgentCard key={agent.id} agent={agent} />
+                  <AgentCard
+                    key={agent.id}
+                    agent={agent as unknown as AgentData}
+                  />
                 ))}
             </div>
           ) : (
             <div className="text-center py-20 bg-white/5 rounded-2xl border border-dashed border-white/10 text-gray-500">
-              L'équipe est en cours de constitution.
+              Léquipe est en cours de constitution.
             </div>
           )}
         </div>
       </section>
 
-      <section
+      <footer
         id="contact"
         className="py-24 px-6 bg-[#0a0a0a] border-t border-white/5"
       >
         <div className="max-w-3xl mx-auto text-center space-y-8">
           <h2 className="text-3xl font-light">Un projet immobilier ?</h2>
-          <p className="text-gray-400">
-            Contactez l'agence de {agency.name} directement par téléphone ou via
-            nos agents.
-          </p>
-
           {agency.phone && (
             <a
               href={`tel:${agency.phone}`}
               className="inline-flex items-center gap-3 text-3xl md:text-5xl font-bold hover:text-barth-gold transition"
             >
-              {/* CORRECTION : On utilise className pour la taille responsive au lieu de size/md */}
               <Phone className="w-8 h-8 md:w-12 md:h-12" />
               {agency.phone}
             </a>
           )}
-
           <div className="pt-12 mt-12 border-t border-white/10 flex flex-col md:flex-row justify-between items-center text-sm text-gray-500 gap-4">
             <p>© 2026 Barth Immobilier - Agence de {agency.name}</p>
-            <div className="flex gap-6">
-              <Link href="#" className="hover:text-white">
-                Mentions légales
-              </Link>
-              <Link href="#" className="hover:text-white">
-                Confidentialité
-              </Link>
-            </div>
           </div>
         </div>
-      </section>
+      </footer>
     </div>
   );
 }

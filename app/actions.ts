@@ -314,3 +314,57 @@ export async function deleteAgency(agencyId: string) {
     return { success: false, error: "Impossible de supprimer l'agence." };
   }
 }
+
+export async function trackVisit(agentId?: string, agencyId?: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  try {
+    // On utilise $transaction pour s'assurer que les deux écritures réussissent ou échouent ensemble
+    await prisma.$transaction(async (tx) => {
+      // 1. Mise à jour de la statistique GLOBALE (pour le graphique du dashboard)
+      await tx.analytics.upsert({
+        where: {
+          date_agentId_agencyId: {
+            date: today,
+            agentId: "global",
+            agencyId: "global",
+          },
+        },
+        update: { visits: { increment: 1 } },
+        create: {
+          date: today,
+          agentId: "global",
+          agencyId: "global",
+          visits: 1,
+        },
+      });
+
+      // 2. Mise à jour de la statistique SPÉCIFIQUE (si un ID est fourni)
+      // Cela te permettra plus tard de voir les stats d'un agent précis
+      if (agentId || agencyId) {
+        await tx.analytics.upsert({
+          where: {
+            date_agentId_agencyId: {
+              date: today,
+              agentId: agentId || "none", // On évite "global" ici pour ne pas mélanger
+              agencyId: agencyId || "none",
+            },
+          },
+          update: { visits: { increment: 1 } },
+          create: {
+            date: today,
+            agentId: agentId || "none",
+            agencyId: agencyId || "none",
+            visits: 1,
+          },
+        });
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur de suivi analytics:", error);
+    return { success: false, error: "Analytics error" };
+  }
+}

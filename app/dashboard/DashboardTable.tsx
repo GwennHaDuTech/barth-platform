@@ -36,6 +36,7 @@ interface Props<T> {
   type: "agent" | "agency-physical" | "agency-online";
   isEmpty?: boolean;
   onEdit?: (item: T) => void;
+  liveVisits?: Record<string, number>; // ✅ Bien déclaré ici
 }
 
 export default function DashboardTable<T extends DashboardItem>({
@@ -44,6 +45,7 @@ export default function DashboardTable<T extends DashboardItem>({
   type,
   isEmpty,
   onEdit,
+  liveVisits = {}, // ✅ On l'extrait ici avec une valeur par défaut
 }: Props<T>) {
   const [isPending, startTransition] = useTransition();
   const [period, setPeriod] = useState("Tout");
@@ -65,26 +67,26 @@ export default function DashboardTable<T extends DashboardItem>({
   // --- LOGIQUE DE TRI ---
   const sortedData = useMemo(() => {
     const list = [...data];
-    const getVisits = (item: T) => {
-      const seed = item.id.charCodeAt(0) + item.id.charCodeAt(1);
-      if (period === "24h") return (seed * 7) % 100;
-      if (period === "7 jours") return (seed * 13) % 500;
-      if (period === "30 jours") return (seed * 21) % 2000;
-      return (seed * 5) % 5000;
-    };
-    return list.sort((a, b) => getVisits(b) - getVisits(a));
-  }, [data, period]);
+    // On trie par visites réelles si disponibles, sinon par ID
+    return list.sort((a, b) => {
+      const visitsA = liveVisits[a.id] || 0;
+      const visitsB = liveVisits[b.id] || 0;
+      return visitsB - visitsA;
+    });
+  }, [data, liveVisits]); // ✅ Dépend de liveVisits pour se réorganiser en direct
 
   // --- LOGIQUE EXPORT CSV ---
   const handleExportCSV = () => {
-    const headers = type === "agent" ? "ID,Prenom,Nom,Agence\n" : "ID,Nom\n";
+    const headers =
+      type === "agent" ? "ID,Prenom,Nom,Agence,Visites\n" : "ID,Nom,Visites\n";
     const rows = sortedData
       .map((item) => {
+        const v = liveVisits[item.id] || 0;
         return type === "agent"
           ? `${item.id},${item.firstname},${item.lastname},${
               item.agency?.name || "N/A"
-            }`
-          : `${item.id},${item.name}`;
+            },${v}`
+          : `${item.id},${item.name},${v}`;
       })
       .join("\n");
 
@@ -93,7 +95,7 @@ export default function DashboardTable<T extends DashboardItem>({
     });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `export-${type}-${period}.csv`);
+    link.setAttribute("download", `export-${type}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -101,10 +103,11 @@ export default function DashboardTable<T extends DashboardItem>({
     toast.success("Export terminé");
   };
 
-  // --- ACTIONS ---
   const handleOpen = (item: T) => {
     if (type === "agent" && item.slug) {
       window.open(`/agent/${item.slug}`, "_blank");
+    } else if (type === "agency-physical") {
+      window.open(`/agence/${item.id}`, "_blank");
     }
   };
 
@@ -142,8 +145,6 @@ export default function DashboardTable<T extends DashboardItem>({
               <div className="absolute right-0 mt-2 w-52 bg-[#121212]/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl z-100 py-2 animate-in fade-in zoom-in-95 duration-200">
                 <button
                   onClick={() => {
-                    // onEdit appellera soit handleEditAgent, soit handleAddAgency
-                    // selon ce que le Wrapper lui a passé.
                     onEdit?.({} as T);
                     setShowMenu(false);
                   }}
@@ -163,14 +164,14 @@ export default function DashboardTable<T extends DashboardItem>({
                   onClick={() => window.location.reload()}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] text-gray-400 hover:text-white transition"
                 >
-                  <RefreshCw size={14} /> Rafraîchir les données
+                  <RefreshCw size={14} /> Rafraîchir
                 </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* SÉLECTEUR DE PÉRIODE */}
+        {/* SÉLECTEUR DE PÉRIODE (Note: Pour l'instant, liveVisits est calé sur "Tout" ou "Aujourd'hui") */}
         <div className="flex bg-white/5 p-1 rounded-lg">
           {periods.map((p: string) => (
             <button
@@ -190,7 +191,7 @@ export default function DashboardTable<T extends DashboardItem>({
 
       {/* TABLEAU CONTENT */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
-        {isEmpty || data.length === 0 ? (
+        {isEmpty || sortedData.length === 0 ? (
           <div className="h-full flex items-center justify-center text-xs italic opacity-20">
             {isEmpty ? "En attente de configuration" : "Aucun site trouvé"}
           </div>
@@ -212,15 +213,8 @@ export default function DashboardTable<T extends DashboardItem>({
             </thead>
             <tbody className="text-xs">
               {sortedData.map((item) => {
-                const getVisitsCount = (id: string, currentPeriod: string) => {
-                  const seed = id.charCodeAt(0) + id.charCodeAt(1);
-                  if (currentPeriod === "24h") return (seed * 7) % 100;
-                  if (currentPeriod === "7 jours") return (seed * 13) % 500;
-                  if (currentPeriod === "30 jours") return (seed * 21) % 2000;
-                  return (seed * 5) % 5000;
-                };
-
-                const visits = getVisitsCount(item.id, period);
+                // ✅ On utilise la vraie valeur venant de liveVisits
+                const currentVisits = liveVisits[item.id] || 0;
 
                 return (
                   <tr
@@ -246,28 +240,25 @@ export default function DashboardTable<T extends DashboardItem>({
                     )}
 
                     <td className="p-2 text-center text-barth-gold font-light">
-                      {visits.toLocaleString()}
+                      {currentVisits.toLocaleString()}
                     </td>
 
                     <td className="p-2 text-right">
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-end gap-1">
                         <button
                           onClick={() => handleOpen(item)}
-                          title="Ouvrir"
                           className="p-1.5 hover:bg-white/10 rounded-lg hover:text-barth-gold transition"
                         >
                           <ExternalLink size={14} />
                         </button>
                         <button
                           onClick={() => onEdit && onEdit(item)}
-                          title="Modifier"
                           className="p-1.5 hover:bg-white/10 rounded-lg hover:text-blue-400 transition"
                         >
                           <Edit size={14} />
                         </button>
                         <button
                           onClick={() => handleDelete(item.id)}
-                          title="Supprimer"
                           className="p-1.5 hover:bg-white/10 rounded-lg hover:text-red-400 transition"
                         >
                           <Trash2 size={14} />

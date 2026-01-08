@@ -2,23 +2,21 @@ import React from "react";
 import { notFound } from "next/navigation";
 import prisma from "@/lib/prisma";
 import styles from "./agent.module.css";
-import { MapPin, Phone, Mail, Instagram, Linkedin } from "lucide-react"; // Assure-toi d'avoir installé lucide-react
+import { MapPin, Phone, Mail, Instagram, Linkedin } from "lucide-react";
+import TrackingClient from "./TrackingClient";
 
-// Fonction pour récupérer l'agent via le SLUG
 async function getAgent(slug: string) {
-  // On nettoie le slug (ex: "jean-dupont")
   const cleanSlug = decodeURIComponent(slug).toLowerCase();
 
   const agent = await prisma.agent.findUnique({
-    where: { slug: cleanSlug }, // ✅ On cherche bien par SLUG maintenant
+    where: { slug: cleanSlug },
   });
 
   return agent;
 }
 
-// --- TYPE NEXT.JS 15 ---
 type Props = {
-  params: Promise<{ slug: string }>; // Le dossier s'appelle [slug]
+  params: Promise<{ slug: string }>;
 };
 
 export default async function AgentSitePage(props: Props) {
@@ -41,13 +39,14 @@ export default async function AgentSitePage(props: Props) {
     agent.photo ||
     "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=800&q=80";
 
-  // Photo de VILLE (Celle de l'upload !) ou fallback immobilier
+  // Photo de VILLE (Celle de l'upload !)
   const cityBackground =
     agent.cityPhoto ||
     "https://images.unsplash.com/photo-1600596542815-e32870026fcf?q=80&w=2074";
 
   return (
     <div className={styles.container}>
+      <TrackingClient agentId={agent.id} />
       {/* --- HEADER --- */}
       <header className={styles.header}>
         <div className={styles.logoContainer}>
@@ -70,8 +69,6 @@ export default async function AgentSitePage(props: Props) {
           </a>
         </nav>
       </header>
-
-      {/* --- HERO SECTION (AVEC TA PHOTO DE VILLE !) --- */}
       <section
         className={styles.hero}
         style={{

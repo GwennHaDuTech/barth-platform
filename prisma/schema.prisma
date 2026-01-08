@@ -85,3 +85,13 @@ enum AdminRole {
   SUPER_ADMIN
   ADMIN
 }
+model Analytics {
+  id        String   @id @default(cuid())
+  date      DateTime @default(now()) @db.Date // On ne garde que la date (sans l'heure)
+  visits    Int      @default(1)
+  agentId   String?
+  agencyId  String?
+
+  @@unique([date, agentId, agencyId]) // Évite les doublons pour un même jour
+}
+
