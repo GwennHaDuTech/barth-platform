@@ -3,7 +3,7 @@ import "./globals.css";
 // 1. Import de Clerk
 import { ClerkProvider } from "@clerk/nextjs";
 import { frFR } from "@clerk/localizations";
-import { Toaster } from "sonner"; // Pour l'avoir en français !
+import { Toaster } from "sonner"; 
 
 export const metadata: Metadata = {
   title: "Barth Platform",

@@ -21,7 +21,7 @@ const GlassCard = ({ children, className = "" }: GlassCardProps) => {
     `}
     >
       {/* Petit effet de reflet optionnel en haut */}
-      <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-barth-gold/30 to-transparent"></div>
+      <div className="absolute top-0 inset-x-0 h-px bg-linear-to-r from-transparent via-barth-gold/30 to-transparent"></div>
 
       {children}
     </div>

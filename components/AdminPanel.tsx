@@ -41,14 +41,12 @@ export default function AdminPanel({ onClose }: Props) {
 
   // 1. Définition stable de la fonction de chargement
   const loadAdmins = async () => {
-    // Note: On ne met pas setIsLoading(true) ici car cette fonction sert juste à mettre à jour
     const data = await getAdmins();
     setAdmins(data as unknown as Admin[]);
     setIsLoading(false);
   };
 
   // 2. Le useEffect gère son propre chargement initial de manière isolée
-  // Cela satisfait le linter car il n'y a aucune dépendance externe qui change
   useEffect(() => {
     const initData = async () => {
       try {
