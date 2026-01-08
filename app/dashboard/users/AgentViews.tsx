@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -12,17 +12,19 @@ import {
   AlertCircle,
   Building2,
   MoreVertical,
-  LayoutGrid, // ✅ Pour l'icône Grille
-  List, // ✅ Pour l'icône Liste
+  LayoutGrid,
+  List,
   MapPin,
   ExternalLink,
   Loader2,
+  Activity,
 } from "lucide-react";
 import CreateAgentForm from "../CreateAgentForm/CreateAgentForm";
 import { deleteAgent } from "@/app/actions";
 import { toast } from "sonner";
 
-// ... (Interfaces AgencyOption, Agent, Props inchangées) ...
+// --- INTERFACES ---
+
 interface AgencyOption {
   id: string;
   name: string;
@@ -51,12 +53,28 @@ interface Agent {
   createdAt: Date;
 }
 
+interface RawAnalyticsData {
+  date: string;
+  agentId: string;
+  agencyId: string;
+  visits: number;
+}
+
+interface PeriodStats {
+  "24h": number;
+  "7 jours": number;
+  "30 jours": number;
+  Tout: number;
+}
+
 interface Props {
   initialAgents: Agent[];
   domain: string;
   protocol: string;
   availableAgencies: AgencyOption[];
 }
+
+// --- UTILITAIRES ---
 
 const checkConformity = (agent: Agent) => {
   const missingFields = [];
@@ -74,6 +92,60 @@ const checkConformity = (agent: Agent) => {
   };
 };
 
+// --- COMPOSANT LiveCounter CORRIGÉ ---
+const LiveCounter = ({ value }: { value: number }) => {
+  const [highlight, setHighlight] = useState(false);
+  // On utilise useRef pour stocker la valeur précédente sans déclencher de rendu
+  const prevRef = useRef(value);
+
+  useEffect(() => {
+    // Si la valeur augmente par rapport à ce qu'on a en mémoire
+    if (value > prevRef.current) {
+      // ✅ CORRECTION : On utilise setTimeout pour différer le setState
+      // Cela sort la mise à jour du cycle synchrone et corrige l'erreur ESLint
+      const startTimer = setTimeout(() => {
+        setHighlight(true);
+      }, 10);
+
+      // On éteint l'effet après 1 seconde
+      const endTimer = setTimeout(() => {
+        setHighlight(false);
+      }, 1000);
+
+      prevRef.current = value;
+
+      // Nettoyage des timers si le composant est démonté
+      return () => {
+        clearTimeout(startTimer);
+        clearTimeout(endTimer);
+      };
+    }
+
+    // Si pas de changement ou baisse, on met juste à jour la ref
+    prevRef.current = value;
+  }, [value]);
+
+  return (
+    <div
+      className={`font-bold px-3 py-1 rounded-md text-sm transition-all duration-500 flex items-center justify-center gap-2 ${
+        highlight
+          ? "bg-green-500/20 text-green-400 scale-105 border border-green-500/30"
+          : "bg-white/5 text-barth-gold scale-100 border border-transparent"
+      }`}
+    >
+      <Activity
+        size={14}
+        className={`transition-all duration-500 ${
+          highlight ? "opacity-100 w-4" : "opacity-0 w-0"
+        }`}
+      />
+      {value.toLocaleString()}
+    </div>
+  );
+};
+
+// --- COMPOSANT PRINCIPAL ---
+
 export default function AgentViews({
   initialAgents,
   availableAgencies,
@@ -81,16 +153,101 @@ export default function AgentViews({
   const [agents, setAgents] = useState(initialAgents);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
+  const [openSettingsId, setOpenSettingsId] = useState<string | null>(null);
 
-  // ✅ NOUVEAU STATE : Mode d'affichage (Liste par défaut)
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [period, setPeriod] = useState("7 jours");
+  const periods = ["24h", "7 jours", "30 jours", "Tout"];
 
-  // --- LOGIQUE SUPPRESSION ---
+  const [agentVisits, setAgentVisits] = useState<Record<string, PeriodStats>>(
+    {}
+  );
+
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
   const [deleteConfirmationInput, setDeleteConfirmationInput] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // ... (Garde tes fonctions handleDeleteClick, confirmDelete inchangées) ...
+  // --- 1. RECUPERATION DES STATS ---
+  useEffect(() => {
+    let isMounted = true;
+    const fetchStats = async () => {
+      try {
+        const res = await fetch("/api/stats");
+        const { raw }: { raw: RawAnalyticsData[] } = await res.json();
+        if (!isMounted) return;
+
+        const now = new Date();
+        const getLimit = (days: number) =>
+          new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
+        const visitsMap: Record<string, PeriodStats> = {};
+
+        agents.forEach((agent) => {
+          const entries = raw.filter((s) => s.agentId === agent.id);
+          visitsMap[agent.id] = {
+            "24h": entries
+              .filter((s) => new Date(s.date) >= getLimit(1))
+              .reduce((acc, curr) => acc + curr.visits, 0),
+            "7 jours": entries
+              .filter((s) => new Date(s.date) >= getLimit(7))
+              .reduce((acc, curr) => acc + curr.visits, 0),
+            "30 jours": entries
+              .filter((s) => new Date(s.date) >= getLimit(30))
+              .reduce((acc, curr) => acc + curr.visits, 0),
+            Tout: entries.reduce((acc, curr) => acc + curr.visits, 0),
+          };
+        });
+        setAgentVisits(visitsMap);
+      } catch (e) {
+        console.error("Erreur stats", e);
+      }
+    };
+
+    fetchStats();
+    const interval = setInterval(fetchStats, 5000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [agents]);
+
+  // --- 2. TRI AUTOMATIQUE ---
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: "asc" | "desc";
+  } | null>(null);
+
+  const sortedAgents = useMemo(() => {
+    const list = [...agents];
+    if (sortConfig) {
+      return list.sort((a, b) => {
+        const key = sortConfig.key as keyof Agent;
+        const valA = (a[key] ?? "").toString().toLowerCase();
+        const valB = (b[key] ?? "").toString().toLowerCase();
+        if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+    return list.sort((a, b) => {
+      const visitsA = agentVisits[a.id]?.[period as keyof PeriodStats] || 0;
+      const visitsB = agentVisits[b.id]?.[period as keyof PeriodStats] || 0;
+      return visitsB - visitsA;
+    });
+  }, [agents, sortConfig, agentVisits, period]);
+
+  const handleSort = (key: string) => {
+    let direction: "asc" | "desc" = "asc";
+    if (
+      sortConfig &&
+      sortConfig.key === key &&
+      sortConfig.direction === "asc"
+    ) {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
   const handleDeleteClick = (agent: Agent) => {
     setAgentToDelete(agent);
     setDeleteConfirmationInput("");
@@ -123,34 +280,6 @@ export default function AgentViews({
     }
   };
 
-  // --- TRI ---
-  const [sortConfig, setSortConfig] = useState<{
-    key: string;
-    direction: "asc" | "desc";
-  } | null>(null);
-
-  const handleSort = (key: string) => {
-    // ... (Garde ta fonction handleSort inchangée) ...
-    let direction: "asc" | "desc" = "asc";
-    if (
-      sortConfig &&
-      sortConfig.key === key &&
-      sortConfig.direction === "asc"
-    ) {
-      direction = "desc";
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sortedAgents = [...agents].sort((a: any, b: any) => {
-      const valA = a[key] || "";
-      const valB = b[key] || "";
-      if (valA < valB) return direction === "asc" ? -1 : 1;
-      if (valA > valB) return direction === "asc" ? 1 : -1;
-      return 0;
-    });
-    setAgents(sortedAgents);
-    setSortConfig({ key, direction });
-  };
-
   const handleCreateClick = () => {
     setEditingAgent(null);
     setIsModalOpen(true);
@@ -161,11 +290,9 @@ export default function AgentViews({
     setIsModalOpen(true);
   };
 
-  const [openSettingsId, setOpenSettingsId] = useState<string | null>(null);
-
   return (
     <div className="w-full flex flex-col gap-6 relative">
-      {/* MODALES (Creation / Suppression) - Garde ton code existant ici */}
+      {/* MODALES */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <CreateAgentForm
@@ -178,14 +305,12 @@ export default function AgentViews({
 
       {agentToDelete && (
         <div className="fixed inset-0 z-60 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-          {/* ... Ton code de popup suppression ... */}
           <div className="bg-[#1a1a1a] border border-red-500/30 p-6 rounded-2xl w-full max-w-md shadow-2xl">
             <h3 className="text-xl font-bold text-white mb-2">
               Supprimer le site ?
             </h3>
             <p className="text-gray-400 text-sm mb-4">
-              Cette action est irréversible. Pour confirmer, tapez la phrase
-              ci-dessous :
+              Tapez la phrase de confirmation ci-dessous :
             </p>
             <p className="text-red-400 font-mono text-sm bg-red-500/10 p-2 rounded mb-4 select-all">
               supprimer le site de {agentToDelete.lastname.toLowerCase()}
@@ -216,69 +341,96 @@ export default function AgentViews({
         </div>
       )}
 
-      {/* BARRE D'OUTILS */}
+      {/* BARRE D'OUTILS AMÉLIORÉE */}
       <div className="flex justify-between items-center">
-        {/* GAUCHE : Toggle Vue Liste / Grille */}
-        <div className="bg-[#0f0f0f] p-1 rounded-xl border border-white/10 flex gap-1">
-          <button
-            onClick={() => setViewMode("list")}
-            className={`p-2 rounded-lg transition-all ${
-              viewMode === "list"
-                ? "bg-white/10 text-white shadow-sm"
-                : "text-gray-500 hover:text-white hover:bg-white/5"
-            }`}
-            title="Vue Liste"
-          >
-            <List size={18} />
-          </button>
-          <button
-            onClick={() => setViewMode("grid")}
-            className={`p-2 rounded-lg transition-all ${
-              viewMode === "grid"
-                ? "bg-white/10 text-white shadow-sm"
-                : "text-gray-500 hover:text-white hover:bg-white/5"
-            }`}
-            title="Vue Grille"
-          >
-            <LayoutGrid size={18} />
-          </button>
+        <div className="flex items-center gap-4">
+          {/* Vue */}
+          <div className="bg-[#0f0f0f] p-1.5 rounded-xl border border-white/10 flex gap-1 shadow-sm">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`p-3 rounded-lg transition-all ${
+                viewMode === "list"
+                  ? "bg-white/10 text-white shadow-sm"
+                  : "text-gray-500 hover:text-white"
+              }`}
+              title="Vue Liste"
+            >
+              <List size={20} />
+            </button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-3 rounded-lg transition-all ${
+                viewMode === "grid"
+                  ? "bg-white/10 text-white shadow-sm"
+                  : "text-gray-500 hover:text-white"
+              }`}
+              title="Vue Grille"
+            >
+              <LayoutGrid size={20} />
+            </button>
+          </div>
+
+          {/* Période */}
+          <div className="bg-[#0f0f0f] p-1.5 rounded-xl border border-white/10 flex gap-1 shadow-sm">
+            {periods.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  period === p
+                    ? "bg-barth-gold text-white shadow-sm"
+                    : "text-gray-500 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* DROITE : Bouton Créer */}
         <button
           onClick={handleCreateClick}
-          className="bg-transparent text-white border border-transparent hover:border-white px-4 py-2 rounded-xl font-medium transition flex items-center gap-2"
+          className="bg-transparent text-white border border-transparent hover:border-white px-5 py-2.5 rounded-xl font-medium transition flex items-center gap-2"
         >
-          <Plus size={18} />
+          <Plus size={20} />
           <span>Nouvel Agent</span>
         </button>
       </div>
 
-      {/* --- VUE LISTE (TABLEAU) --- */}
+      {/* --- VUE LISTE (TABLEAU AGRANDI) --- */}
       {viewMode === "list" && (
         <div className="w-full bg-[#0f0f0f] border border-white/10 rounded-2xl">
-          {/* ... Ton code de tableau existant EXACTEMENT comme avant ... */}
-          <table className="w-full text-left text-sm text-gray-400">
+          <table className="w-full text-left text-gray-400">
             <thead className="text-xs uppercase border-b border-white/10 text-barth-gold bg-[#0f0f0f]">
               <tr>
                 <th
-                  className="px-6 py-4 font-medium cursor-pointer"
+                  className="px-6 py-5 font-bold tracking-wider cursor-pointer"
                   onClick={() => handleSort("lastname")}
                 >
-                  Agent <ArrowUpDown size={12} className="inline ml-1" />
+                  Agent <ArrowUpDown size={14} className="inline ml-1" />
                 </th>
-                <th className="px-6 py-4 font-medium">Agence rattachée</th>
-                <th className="px-6 py-4 font-medium text-center">Visiteurs</th>
-                <th className="px-6 py-4 font-medium text-center">
+                <th className="px-6 py-5 font-bold tracking-wider">
+                  Agence rattachée
+                </th>
+                <th className="px-6 py-5 font-bold tracking-wider text-center">
+                  Visiteurs ({period})
+                </th>
+                <th className="px-6 py-5 font-bold tracking-wider text-center">
                   Site à jour
                 </th>
-                <th className="px-6 py-4 font-medium">Date de création</th>
-                <th className="px-6 py-4 font-medium text-right">Réglage</th>
+                <th className="px-6 py-5 font-bold tracking-wider">
+                  Date de création
+                </th>
+                <th className="px-6 py-5 font-bold tracking-wider text-right">
+                  Réglage
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {agents.map((agent) => {
+              {sortedAgents.map((agent) => {
                 const { isCompliant } = checkConformity(agent);
+                const visits =
+                  agentVisits[agent.id]?.[period as keyof PeriodStats] || 0;
                 const statusLabel = isCompliant
                   ? "Site à jour"
                   : "Site à modifier";
@@ -292,9 +444,9 @@ export default function AgentViews({
                     key={agent.id}
                     className="hover:bg-white/5 transition group"
                   >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10 relative">
+                    <td className="px-6 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-full overflow-hidden border border-white/10 relative shrink-0">
                           {agent.photo ? (
                             <Image
                               src={agent.photo}
@@ -303,36 +455,45 @@ export default function AgentViews({
                               className="object-cover"
                             />
                           ) : (
-                            <div className="w-full h-full bg-barth-gold/20 flex items-center justify-center text-barth-gold font-bold">
+                            <div className="w-full h-full bg-barth-gold/20 flex items-center justify-center text-barth-gold font-bold text-xl">
                               {agent.firstname[0]}
                             </div>
                           )}
                         </div>
-                        <div className="text-white font-medium">
-                          {agent.firstname} {agent.lastname}
+                        <div className="flex flex-col gap-0.5">
+                          <div className="text-white font-bold text-base">
+                            {agent.firstname} {agent.lastname}
+                          </div>
+                          <div className="text-gray-500 text-sm">
+                            {agent.email}
+                          </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 flex items-center gap-2">
-                      <Building2 size={14} className="text-gray-500" />
-                      <span>
-                        {agent.agency ? agent.agency.name : "Non rattaché"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="font-mono text-white/80">0</span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div
-                        className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-medium ${statusColor}`}
-                      >
-                        <StatusIcon size={12} /> {statusLabel}
+                    <td className="px-6 py-6">
+                      <div className="flex items-center gap-2 text-sm text-gray-300">
+                        <Building2 size={16} className="text-gray-500" />
+                        <span>
+                          {agent.agency ? agent.agency.name : "Non rattaché"}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-6 text-center">
+                      <div className="flex justify-center">
+                        <LiveCounter value={visits} />
+                      </div>
+                    </td>
+                    <td className="px-6 py-6 text-center">
+                      <div
+                        className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-sm font-medium ${statusColor}`}
+                      >
+                        <StatusIcon size={14} /> {statusLabel}
+                      </div>
+                    </td>
+                    <td className="px-6 py-6 text-sm">
                       {new Date(agent.createdAt).toLocaleDateString("fr-FR")}
                     </td>
-                    <td className="px-6 py-4 text-right relative">
+                    <td className="px-6 py-6 text-right relative">
                       <div className="flex justify-end">
                         <button
                           onClick={() =>
@@ -340,9 +501,9 @@ export default function AgentViews({
                               openSettingsId === agent.id ? null : agent.id
                             )
                           }
-                          className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition"
+                          className="p-3 hover:bg-white/10 rounded-xl text-gray-400 hover:text-white transition"
                         >
-                          <MoreVertical size={18} />
+                          <MoreVertical size={20} />
                         </button>
                       </div>
                       {openSettingsId === agent.id && (
@@ -351,24 +512,24 @@ export default function AgentViews({
                             className="fixed inset-0 z-10"
                             onClick={() => setOpenSettingsId(null)}
                           ></div>
-                          <div className="absolute right-6 top-12 z-20 w-48 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                          <div className="absolute right-6 top-16 z-20 w-52 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
                             <button
                               onClick={() => {
                                 handleEditClick(agent);
                                 setOpenSettingsId(null);
                               }}
-                              className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-2"
+                              className="w-full text-left px-4 py-3.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3"
                             >
-                              <Edit size={14} /> Modifier le site
+                              <Edit size={16} /> Modifier le site
                             </button>
                             <button
                               onClick={() => {
                                 handleDeleteClick(agent);
                                 setOpenSettingsId(null);
                               }}
-                              className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 border-t border-white/5"
+                              className="w-full text-left px-4 py-3.5 text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-3 border-t border-white/5"
                             >
-                              <Trash2 size={14} /> Supprimer le site
+                              <Trash2 size={16} /> Supprimer le site
                             </button>
                           </div>
                         </>
@@ -385,15 +546,16 @@ export default function AgentViews({
       {/* --- VUE GRILLE (CARTES) --- */}
       {viewMode === "grid" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {agents.map((agent) => {
+          {sortedAgents.map((agent) => {
             const { isCompliant } = checkConformity(agent);
-            // Background un peu sombre style "Glass"
+            const visits =
+              agentVisits[agent.id]?.[period as keyof PeriodStats] || 0;
+
             return (
               <div
                 key={agent.id}
                 className="group relative bg-[#121212] border border-white/10 rounded-3xl overflow-hidden hover:border-white/20 transition-all duration-300 flex flex-col"
               >
-                {/* PHOTO (Hauteur fixe, object-cover) */}
                 <div className="relative h-48 w-full bg-white/5">
                   {agent.photo ? (
                     <Image
@@ -408,7 +570,10 @@ export default function AgentViews({
                     </div>
                   )}
 
-                  {/* Menu 3 points en haut à droite */}
+                  <div className="absolute top-3 left-3 z-10 bg-black/40 backdrop-blur-md border border-white/10 px-1 py-1 rounded-lg">
+                    <LiveCounter value={visits} />
+                  </div>
+
                   <div className="absolute top-3 right-3 z-10">
                     <button
                       onClick={() =>
@@ -439,14 +604,11 @@ export default function AgentViews({
                   </div>
                 </div>
 
-                {/* CONTENU TEXTE */}
                 <div className="p-6 flex flex-col flex-1">
-                  {/* Nom */}
                   <h3 className="text-xl font-bold text-white mb-1">
                     {agent.firstname} {agent.lastname}
                   </h3>
 
-                  {/* Agence */}
                   <div className="flex items-center gap-2 mb-4">
                     <div
                       className={`w-2 h-2 rounded-full ${
@@ -458,13 +620,11 @@ export default function AgentViews({
                     </span>
                   </div>
 
-                  {/* Infos Localisation */}
                   <div className="flex items-center gap-2 text-sm text-gray-300 mb-6">
                     <MapPin size={16} className="text-barth-gold shrink-0" />
                     <span>{agent.city || "Ville non renseignée"}</span>
                   </div>
 
-                  {/* BOUTONS D'ACTION (Footer) */}
                   <div className="mt-auto flex gap-3">
                     <button
                       onClick={() => handleEditClick(agent)}
@@ -473,7 +633,7 @@ export default function AgentViews({
                       <Edit size={18} />
                     </button>
                     <Link
-                      href={`/agent/${agent.slug}`} // Supposons que tu aies cette route
+                      href={`/agent/${agent.slug}`}
                       className="flex-1 border border-white/20 text-white rounded-xl flex items-center justify-center gap-2 text-sm font-medium hover:bg-white hover:text-black transition group/btn"
                     >
                       VOIR LE SITE
