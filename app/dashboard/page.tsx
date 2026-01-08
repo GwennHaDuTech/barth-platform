@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import GlassCard from "@/components/ui/GlassCard";
 import DashboardClientWrapper from "./DashboardClientWrapper";
 import { Prisma } from "@prisma/client";
+import { Info } from "lucide-react";
 
 // Type pour les agents avec leur agence rattachée
 type AgentWithAgency = Prisma.AgentGetPayload<{
@@ -90,10 +91,38 @@ export default async function DashboardPage() {
             </span>
           </GlassCard>
 
-          <GlassCard className="flex flex-col justify-center p-4">
-            <span className="text-gray-400 text-[10px] uppercase tracking-widest font-medium">
-              Taux Rebond
-            </span>
+          <GlassCard className="flex flex-col justify-center p-4 overflow-visible! relative z-20">
+            <div className="flex items-center gap-2 mb-2 relative z-50">
+              {" "}
+              {/* Ajout de z-50 et relative */}
+              <h3 className="text-xs font-medium text-gray-400 uppercase tracking-widest">
+                Taux de Rebond
+              </h3>
+              <div className="group relative flex items-center">
+                <Info
+                  size={14}
+                  className="text-gray-500 cursor-help hover:text-white transition-colors"
+                />
+
+                {/* --- BULLE MODIFIÉE (S'affiche EN DESSOUS) --- */}
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-64 p-4 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 scale-95 group-hover:scale-100 origin-top">
+                  {/* Petite flèche (Pointe vers le HAUT maintenant) */}
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-8 border-transparent border-b-[#1a1a1a]" />
+
+                  <p className="text-[15px] text-gray-300 leading-relaxed text-center">
+                    {`Pourcentage de visiteurs qui quittent le site après n'avoir
+                    vu qu'une seule page.`}
+                  </p>
+
+                  <div className="mt-2 pt-2 border-t border-white/10">
+                    <p className="text-[15px] text-barth-gold font-medium text-center">
+                      {`💡 Normal sur un site "One-Page" si le client prend juste
+                      le téléphone.`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
             <span className="text-2xl font-light text-barth-gold">24%</span>
           </GlassCard>
 

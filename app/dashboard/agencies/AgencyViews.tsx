@@ -25,7 +25,6 @@ interface Agent {
   lastname: string;
 }
 
-// Interface pour les données brutes de l'API
 interface RawAnalyticsData {
   date: string;
   agentId: string;
@@ -73,7 +72,7 @@ export default function AgencyViews({ agencies, onEdit }: Props) {
     {}
   );
 
-  // ✅ CORRECTION 2 & 10 : Logique encapsulée dans useEffect pour éviter les avertissements
+  //  Logique encapsulée dans useEffect pour éviter les avertissements
   useEffect(() => {
     let isMounted = true;
 
@@ -93,7 +92,7 @@ export default function AgencyViews({ agencies, onEdit }: Props) {
         agencies.forEach((agency) => {
           const entries = raw.filter((s) => s.agencyId === agency.id);
 
-          // ✅ CORRECTION 1 : Typage explicite dans le reduce
+          //  Typage explicite dans le reduce
           visitsMap[agency.id] = {
             "24h": entries
               .filter((s) => new Date(s.date) >= getLimit(1))
@@ -121,7 +120,7 @@ export default function AgencyViews({ agencies, onEdit }: Props) {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [agencies]); // ✅ Dépendance correcte : si la liste d'agences change, on relance
+  }, [agencies]);
 
   const handleDelete = async (id: string, name: string) => {
     if (
@@ -138,7 +137,7 @@ export default function AgencyViews({ agencies, onEdit }: Props) {
           toast.error(result.error);
         }
       } catch {
-        // ✅ CORRECTION 13 : suppression de 'error' inutilisé
+        // suppression de 'error'
         toast.error("Une erreur est survenue");
       }
     }

@@ -11,52 +11,35 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-interface DataPoint {
+interface GraphData {
   name: string;
   visits: number;
 }
 
-// Données simulées pour les autres périodes
-const dataSets: Record<string, DataPoint[]> = {
-  "24h": [
-    { name: "00h", visits: 40 },
-    { name: "04h", visits: 20 },
-    { name: "08h", visits: 150 },
-    { name: "12h", visits: 400 },
-    { name: "16h", visits: 320 },
-    { name: "20h", visits: 500 },
-  ],
-  "1 mois": [
-    { name: "Sem 1", visits: 2500 },
-    { name: "Sem 2", visits: 3200 },
-    { name: "Sem 3", visits: 2800 },
-    { name: "Sem 4", visits: 4100 },
-  ],
-  Tout: [
-    { name: "Jan", visits: 8000 },
-    { name: "Fév", visits: 9500 },
-    { name: "Mar", visits: 12000 },
-  ],
-};
-
-interface DashboardGraphProps {
+interface Props {
   period: string;
-  data: DataPoint[]; // ✅ Les données réelles venant du serveur
+  data: GraphData[];
 }
 
-export default function DashboardGraph({ period, data }: DashboardGraphProps) {
-  // ✅ LOGIQUE DE SELECTION DES DONNÉES
-  // Si on est sur "7 jours", on prend 'data' (les stats réelles),
-  // sinon on prend dans 'dataSets' ou on replie sur 'data'.
-  const displayData = period === "7 jours" ? data : dataSets[period] || data;
+export default function DashboardGraph({ period, data }: Props) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs italic">
+        Aucune donnée disponible pour la période : {period}
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full min-h-50">
       <ResponsiveContainer width="100%" height="100%">
-        {/* ✅ On utilise bien displayData ici */}
         <AreaChart
-          data={displayData}
-          margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
+          data={data}
+          // ✅ CORRECTION MAJEURE ICI :
+          // bottom: 45 -> Laisse beaucoup de place pour le texte en bas
+          // left: -20 -> Colle le graph à gauche (car on cache l'axe Y)
+          // right: 10 -> Laisse un peu d'air à droite
+          margin={{ top: 10, right: 10, left: -20, bottom: 45 }}
         >
           <defs>
             <linearGradient id="colorVisits" x1="0" y1="0" x2="0" y2="1">
@@ -73,13 +56,19 @@ export default function DashboardGraph({ period, data }: DashboardGraphProps) {
             dataKey="name"
             axisLine={false}
             tickLine={false}
+            // ✅ CORRECTION SUPPLEMENTAIRE :
+            // height={60} : Force l'axe à prendre de la hauteur
+            height={60}
             tick={{ fill: "#9ca3af", fontSize: 11 }}
-            dy={10}
+            dy={10} // Descend le texte un peu pour l'aérer
+            interval="preserveStartEnd"
           />
           <YAxis
             axisLine={false}
             tickLine={false}
             tick={{ fill: "#9ca3af", fontSize: 11 }}
+            domain={[0, "auto"]}
+            allowDecimals={false}
           />
           <Tooltip
             contentStyle={{
@@ -91,6 +80,10 @@ export default function DashboardGraph({ period, data }: DashboardGraphProps) {
             }}
             itemStyle={{ color: "#bf9b30" }}
             cursor={{ stroke: "rgba(191, 155, 48, 0.2)", strokeWidth: 2 }}
+            formatter={(value: number | string | undefined) => [
+              `${value ?? 0} Visites`,
+              "",
+            ]}
           />
           <Area
             type="monotone"
@@ -100,6 +93,7 @@ export default function DashboardGraph({ period, data }: DashboardGraphProps) {
             fillOpacity={1}
             fill="url(#colorVisits)"
             animationDuration={1000}
+            activeDot={{ r: 6, fill: "#bf9b30", stroke: "#000" }}
           />
         </AreaChart>
       </ResponsiveContainer>

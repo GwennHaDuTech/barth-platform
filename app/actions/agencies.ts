@@ -6,8 +6,6 @@ import { revalidatePath } from "next/cache";
 export async function deleteAgency(id: string) {
   try {
     // Suppression de l'agence
-    // Note: Prisma supprimera automatiquement les liens (cascade) si ton schema est bien fait,
-    // sinon il faudra peut-être supprimer les agents liés avant, selon ta config.
     await prisma.agency.delete({
       where: { id },
     });

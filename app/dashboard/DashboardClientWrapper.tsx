@@ -17,7 +17,6 @@ interface AgencyOption {
   name: string;
 }
 
-// Interface pour les 4 périodes (doit correspondre à celle de DashboardTable)
 interface PeriodStats {
   "24h": number;
   "7 jours": number;
@@ -65,29 +64,94 @@ export default function DashboardClientWrapper({
     setIsAgencyModalOpen(true);
   };
 
-  // ✅ CORRECTION 1 : On utilise useCallback pour stabiliser la fonction
-  // Cela permet de l'utiliser dans le useEffect sans déclencher de boucle infinie
   const refreshStats = useCallback(async () => {
     try {
       const res = await fetch("/api/stats");
       const { raw }: { raw: AnalyticsData[] } = await res.json();
 
       const now = new Date();
+
+      // --- 1. LOGIQUE GRAPHIQUE INTELLIGENTE ---
+
+      const getGraphStartDate = () => {
+        if (graphPeriod === "24h")
+          return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        if (graphPeriod === "7 jours")
+          return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        if (graphPeriod === "1 mois")
+          return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        return new Date(0);
+      };
+
+      const startDate = getGraphStartDate();
+      const is24hMode = graphPeriod === "24h";
+
+      // On utilise un Map pour grouper les données
+      // Clé = Timestamp (heure ou jour) -> Valeur = Visites
+      const aggregatedData = new Map<string, number>();
+
+      raw.forEach((entry) => {
+        // ✅ CORRECTION 1 : On ignore strictement les données "global" fantômes
+        if (entry.agentId === "global" || entry.agencyId === "global") return;
+
+        const entryDate = new Date(entry.date);
+
+        if (entryDate >= startDate) {
+          let key;
+
+          if (is24hMode) {
+            // ✅ CORRECTION 2 : Mode 24h -> On groupe par HEURE
+            // On arrondit à l'heure pile (ex: 14:00, 15:00)
+            const dateHour = new Date(entryDate);
+            dateHour.setMinutes(0, 0, 0);
+            key = dateHour.toISOString();
+          } else {
+            // Mode Jours -> On groupe par JOUR (YYYY-MM-DD)
+            key = entry.date.split("T")[0];
+          }
+
+          const currentTotal = aggregatedData.get(key) || 0;
+          aggregatedData.set(key, currentTotal + entry.visits);
+        }
+      });
+
+      // Transformation en tableau trié pour Recharts
+      const chartStats = Array.from(aggregatedData.entries())
+        .sort((a, b) => (a[0] > b[0] ? 1 : -1)) // Tri chronologique
+        .map(([key, visits]) => {
+          const date = new Date(key);
+          let nameLabel;
+
+          if (is24hMode) {
+            // Format Heure pour le 24h (ex: "14h")
+            nameLabel = date.getHours() + "h";
+          } else {
+            // Format Jour pour le reste (ex: "Lun. 12")
+            nameLabel = new Intl.DateTimeFormat("fr-FR", {
+              weekday: "short",
+              day: "numeric",
+            }).format(date);
+          }
+
+          return {
+            name: nameLabel,
+            visits: visits,
+          };
+        });
+
+      // Si le tableau est vide (0 visites), on met un point à 0 pour éviter le graph vide
+      if (chartStats.length === 0) {
+        setGraphData([
+          { name: is24hMode ? "Maintenant" : "Aujourd'hui", visits: 0 },
+        ]);
+      } else {
+        setGraphData(chartStats);
+      }
+
+      // --- 2. LOGIQUE TABLEAUX (Inchangée et fiable) ---
       const getLimit = (days: number) =>
         new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
-      // 1. Graphique
-      const chartStats = raw
-        .filter((s) => s.agentId === "global")
-        .map((s) => ({
-          name: new Intl.DateTimeFormat("fr-FR", { weekday: "short" }).format(
-            new Date(s.date)
-          ),
-          visits: s.visits,
-        }));
-      if (chartStats.length > 0) setGraphData(chartStats);
-
-      // 2. Tableaux
       const visitsMap: Record<string, PeriodStats> = {};
       const allSiteIds = [
         ...initialAgents.map((a) => a.id),
@@ -117,9 +181,8 @@ export default function DashboardClientWrapper({
     } catch (e) {
       console.error("Erreur refresh stats", e);
     }
-  }, [initialAgents, physicalAgencies]); // ✅ Dépendances du useCallback
+  }, [initialAgents, physicalAgencies, graphPeriod]);
 
-  // ✅ CORRECTION 2 : Le useEffect est maintenant propre
   useEffect(() => {
     let isMounted = true;
     const fetchAndSetStats = async () => {
@@ -133,7 +196,7 @@ export default function DashboardClientWrapper({
       isMounted = false;
       clearInterval(interval);
     };
-  }, [refreshStats]); // ✅ refreshStats est maintenant une dépendance stable
+  }, [refreshStats]);
 
   return (
     <>
@@ -143,14 +206,14 @@ export default function DashboardClientWrapper({
           data={initialAgents}
           type="agent"
           onEdit={handleEditAgent}
-          liveVisits={siteVisits} // ✅ Plus besoin de 'as any', les types correspondent
+          liveVisits={siteVisits}
         />
         <DashboardTable
           title="Sites Agences Physiques"
           data={physicalAgencies}
           type="agency-physical"
           onEdit={handleAddAgency}
-          liveVisits={siteVisits} // ✅ Idem ici
+          liveVisits={siteVisits}
         />
         <DashboardTable
           title="Sites Agences En Ligne"
