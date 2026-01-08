@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useMemo } from "react";
 import GlassCard from "@/components/ui/GlassCard";
 import { MoreVertical, ExternalLink, Edit, Trash2, User } from "lucide-react";
 import { deleteAgent } from "@/app/actions";
@@ -34,6 +34,26 @@ export default function DashboardTable<T extends DashboardItem>({
   const [isPending, startTransition] = useTransition();
   const [period, setPeriod] = useState("Tout");
   const periods = ["24h", "7 jours", "30 jours", "Tout"];
+
+  // --- LOGIQUE DE TRI INTELLIGENT ---
+  const sortedData = useMemo(() => {
+    // 1. On crée une copie pour ne pas muter les props
+    const list = [...data];
+
+    // 2. On simule/calcule un score de visites selon la période
+    // Plus tard, item.visites_24h viendra de ta DB
+    const getVisits = (item: T) => {
+      // Simulation déterministe basée sur l'ID pour que le tri soit stable
+      const seed = item.id.charCodeAt(0) + item.id.charCodeAt(1);
+      if (period === "24h") return (seed * 7) % 100;
+      if (period === "7 jours") return (seed * 13) % 500;
+      if (period === "30 jours") return (seed * 21) % 2000;
+      return (seed * 5) % 5000; // 'Tout'
+    };
+
+    // 3. Tri décroissant (Plus visités en haut)
+    return list.sort((a, b) => getVisits(b) - getVisits(a));
+  }, [data, period]);
 
   // --- LOGIQUE ACTIONS ---
 
@@ -111,63 +131,78 @@ export default function DashboardTable<T extends DashboardItem>({
               </tr>
             </thead>
             <tbody className="text-xs">
-              {data.map((item, idx) => (
-                <tr
-                  key={item.id}
-                  className="group hover:bg-white/5 transition-colors"
-                >
-                  {type === "agent" ? (
-                    <>
-                      <td className="p-2 flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center overflow-hidden border border-white/5">
-                          <User size={14} className="text-gray-400" />
-                        </div>
-                        <span className="truncate font-light">
-                          {item.firstname} {item.lastname}
-                        </span>
-                      </td>
-                      <td className="p-2 text-gray-500 truncate max-w-20 font-light italic">
-                        {item.agency?.name || "N/A"}
-                      </td>
-                    </>
-                  ) : (
-                    <td className="p-2 font-light">{item.name}</td>
-                  )}
-                  <td className="p-2 text-center text-barth-gold font-light">
-                    {12 + idx}
-                  </td>
+              {sortedData.map((item) => {
+                // 1. Calcul dynamique des visites pour l'affichage (doit matcher la logique du useMemo)
+                const getVisitsCount = (id: string, currentPeriod: string) => {
+                  const seed = id.charCodeAt(0) + id.charCodeAt(1);
+                  if (currentPeriod === "24h") return (seed * 7) % 100;
+                  if (currentPeriod === "7 jours") return (seed * 13) % 500;
+                  if (currentPeriod === "30 jours") return (seed * 21) % 2000;
+                  return (seed * 5) % 5000;
+                };
 
-                  {/* ACTIONS */}
-                  <td className="p-2 text-right">
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-end gap-1">
-                      <button
-                        onClick={() => handleOpen(item)}
-                        title="Ouvrir"
-                        className="p-1.5 hover:bg-white/10 rounded-lg hover:text-barth-gold transition"
-                      >
-                        <ExternalLink size={14} />
-                      </button>
+                const visits = getVisitsCount(item.id, period);
 
-                      {/* ✅ C'est ici qu'on appelle onEdit */}
-                      <button
-                        onClick={() => onEdit && onEdit(item)}
-                        title="Modifier"
-                        className="p-1.5 hover:bg-white/10 rounded-lg hover:text-blue-400 transition"
-                      >
-                        <Edit size={14} />
-                      </button>
+                return (
+                  <tr
+                    key={item.id}
+                    className="group hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+                  >
+                    {type === "agent" ? (
+                      <>
+                        <td className="p-2 flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center overflow-hidden border border-white/5">
+                            {/* On pourrait ici mettre item.photo si elle existe */}
+                            <User size={14} className="text-gray-400" />
+                          </div>
+                          <span className="truncate font-light">
+                            {item.firstname} {item.lastname}
+                          </span>
+                        </td>
+                        <td className="p-2 text-gray-500 truncate max-w-20 font-light italic">
+                          {item.agency?.name || "N/A"}
+                        </td>
+                      </>
+                    ) : (
+                      <td className="p-2 font-light">{item.name}</td>
+                    )}
 
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        title="Supprimer"
-                        className="p-1.5 hover:bg-white/10 rounded-lg hover:text-red-400 transition"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    {/* LA COLONNE VISITE MISE À JOUR */}
+                    <td className="p-2 text-center text-barth-gold font-light">
+                      {visits.toLocaleString()}
+                    </td>
+
+                    {/* ACTIONS */}
+                    <td className="p-2 text-right">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-end gap-1">
+                        <button
+                          onClick={() => handleOpen(item)}
+                          title="Ouvrir"
+                          className="p-1.5 hover:bg-white/10 rounded-lg hover:text-barth-gold transition"
+                        >
+                          <ExternalLink size={14} />
+                        </button>
+
+                        <button
+                          onClick={() => onEdit && onEdit(item)}
+                          title="Modifier"
+                          className="p-1.5 hover:bg-white/10 rounded-lg hover:text-blue-400 transition"
+                        >
+                          <Edit size={14} />
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          title="Supprimer"
+                          className="p-1.5 hover:bg-white/10 rounded-lg hover:text-red-400 transition"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
