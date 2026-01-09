@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { trackVisit } from "@/app/actions";
+import { trackVisit } from "@/app/actions"; // L'import va maintenant fonctionner
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { agentId, agencyId } = body;
 
-    // Appel de ta Server Action mise à jour avec la transaction
-    const result = await trackVisit(agentId, agencyId);
-
-    if (result.success) {
-      return NextResponse.json({ message: "Visit tracked" }, { status: 200 });
-    } else {
-      return NextResponse.json({ error: result.error }, { status: 500 });
+    if (!agentId && !agencyId) {
+      return NextResponse.json({ error: "Missing ID" }, { status: 400 });
     }
+
+    await trackVisit({ agentId, agencyId });
+
+    return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }

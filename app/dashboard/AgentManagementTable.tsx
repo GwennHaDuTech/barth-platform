@@ -10,17 +10,14 @@ import {
   Trash2,
   AlertCircle,
   CheckCircle2,
-  MapPin,
 } from "lucide-react";
 import CreateAgentForm from "../dashboard/CreateAgentForm/CreateAgentForm";
 
-// Définition de l'agence pour le typage
 interface AgencyOption {
   id: string;
   name: string;
 }
 
-// ✅ INTERFACE
 interface Agent {
   id: string;
   firstname: string;
@@ -28,51 +25,37 @@ interface Agent {
   email: string;
   photo: string | null;
   slug: string;
-
-  // Champs Localisation
   city: string | null;
   zipCode: string | null;
   cityPhoto: string | null;
   secondarySector: string | null;
-
-  // Champs Sociaux & Bio
   phone: string | null;
   instagram: string | null;
   linkedin: string | null;
   tiktok: string | null;
   bio: string | null;
-
-  // ✅ AJOUT
   agencyId: string | null;
-
-  // Listings
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  listings: any[];
-
+  // ✅ Correction 1 : On remplace any[] par unknown[] pour satisfaire le linter
+  listings: unknown[];
   createdAt: Date;
 }
 
 interface Props {
   initialAgents: Agent[];
-  domain: string;
-  protocol: string;
-  // ✅ AJOUT : La liste des agences reçue du parent
+  domain?: string;
+  protocol?: string;
   availableAgencies: AgencyOption[];
 }
 
-// --- LOGIQUE DE CONFORMITÉ ---
 const checkConformity = (agent: Agent) => {
   const missingFields = [];
-
-  // ✅ Règle Agence
   if (!agent.agencyId) missingFields.push("Agence de rattachement");
-
   if (!agent.photo) missingFields.push("Photo de profil");
   if (!agent.zipCode) missingFields.push("Code Postal");
   if (!agent.city) missingFields.push("Ville");
   if (!agent.cityPhoto) missingFields.push("Photo de couverture");
   if (!agent.listings || agent.listings.length === 0)
-    missingFields.push("Annonces (Listings)");
+    missingFields.push("Annonces");
 
   return {
     isCompliant: missingFields.length === 0,
@@ -101,20 +84,19 @@ export default function AgentManagementTable({
     ) {
       direction = "desc";
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sortedAgents = [...agents].sort((a: any, b: any) => {
+
+    // ✅ Correction 2 : Typage strict des arguments de tri (plus de 'any')
+    const sortedAgents = [...agents].sort((a: Agent, b: Agent) => {
       if (key === "status") {
         const statusA = checkConformity(a).isCompliant ? 1 : 0;
         const statusB = checkConformity(b).isCompliant ? 1 : 0;
         return direction === "asc" ? statusA - statusB : statusB - statusA;
       }
+      if (key === "visits") return 0;
 
-      if (key === "visits") {
-        return 0;
-      }
-
-      const valA = a[key] || "";
-      const valB = b[key] || "";
+      // Accès sécurisé aux propriétés dynamiques
+      const valA = a[key as keyof Agent] || "";
+      const valB = b[key as keyof Agent] || "";
 
       if (valA < valB) return direction === "asc" ? -1 : 1;
       if (valA > valB) return direction === "asc" ? 1 : -1;
@@ -125,176 +107,113 @@ export default function AgentManagementTable({
     setSortConfig({ key, direction });
   };
 
-  const handleEditClick = (agent: Agent) => {
-    setEditingAgent(agent);
-  };
-
   return (
     <div className="w-full h-full overflow-y-auto custom-scrollbar relative">
-      {/* MODALE D'ÉDITION */}
       {editingAgent && (
-        <div className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <CreateAgentForm
             onClose={() => setEditingAgent(null)}
             agentToEdit={editingAgent}
-            // ✅ AJOUT : On transmet la liste au formulaire
             availableAgencies={availableAgencies}
           />
         </div>
       )}
 
-      <table className="w-full text-left text-sm text-gray-400">
-        <thead className="text-xs uppercase border-b border-white/10 text-barth-gold sticky top-0 bg-[#0a0a0a]/90 backdrop-blur-md z-10">
+      {/* TABLE-FIXED pour gérer strictement la largeur des colonnes */}
+      <table className="w-full text-left text-gray-400 table-fixed">
+        <thead className="text-[9px] lg:text-[9px] 2xl:text-xs uppercase border-b border-white/10 text-barth-gold sticky top-0 bg-[#0a0a0a]/90 backdrop-blur-md z-10">
           <tr>
+            {/* 1. AGENT : 55% de la largeur */}
             <th
-              className="px-6 py-4 font-medium cursor-pointer hover:text-white transition"
+              className="px-2 py-2 w-[55%] font-medium cursor-pointer hover:text-white transition"
               onClick={() => handleSort("lastname")}
             >
-              <div className="flex items-center gap-2">
-                Agent <ArrowUpDown size={12} />
+              <div className="flex items-center gap-1">
+                Agent <ArrowUpDown size={10} />
               </div>
             </th>
+            {/* 2. STATUT : 25% */}
             <th
-              className="px-6 py-4 font-medium cursor-pointer hover:text-white transition"
+              className="px-1 py-2 w-[25%] font-medium cursor-pointer hover:text-white transition text-center"
               onClick={() => handleSort("status")}
             >
-              <div className="flex items-center gap-2">
-                État de Santé <ArrowUpDown size={12} />
+              <div className="flex items-center justify-center gap-1">
+                État <ArrowUpDown size={10} />
               </div>
             </th>
-            <th
-              className="px-6 py-4 font-medium cursor-pointer hover:text-white transition"
-              onClick={() => handleSort("city")}
-            >
-              <div className="flex items-center gap-2">
-                Localisation <ArrowUpDown size={12} />
-              </div>
-            </th>
-            <th
-              className="px-6 py-4 font-medium text-center cursor-pointer hover:text-white transition"
-              onClick={() => handleSort("visits")}
-            >
-              <div className="flex items-center justify-center gap-2">
-                Visites <ArrowUpDown size={12} />
-              </div>
-            </th>
-            <th className="px-6 py-4 font-medium text-right">Actions</th>
+            {/* 3. ACTIONS : 20% */}
+            <th className="px-2 py-2 w-[20%] font-medium text-right">Action</th>
           </tr>
         </thead>
 
         <tbody className="divide-y divide-white/5">
           {agents.map((agent) => {
-            const { isCompliant, missingFields } = checkConformity(agent);
-
+            const { isCompliant } = checkConformity(agent);
             return (
               <tr key={agent.id} className="hover:bg-white/5 transition group">
-                {/* 1. AGENT */}
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10 relative">
+                {/* 1. AGENT CELL */}
+                <td className="px-2 py-2 align-middle">
+                  <div className="flex items-center gap-2 w-full max-w-full">
+                    {/* AVATAR (Fixe) */}
+                    {/* ✅ Correction CSS : shrink-0 au lieu de flex-shrink-0 */}
+                    <div className="w-6 h-6 rounded-full overflow-hidden border border-white/10 relative shrink-0 bg-barth-gold/10">
                       {agent.photo ? (
                         <Image
                           src={agent.photo}
-                          alt={agent.lastname}
+                          alt="Av"
                           fill
                           className="object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full bg-barth-gold/20 flex items-center justify-center text-barth-gold font-bold">
+                        <span className="flex items-center justify-center h-full text-[8px] text-barth-gold font-bold">
                           {agent.firstname[0]}
-                        </div>
+                        </span>
                       )}
                     </div>
-                    <div>
-                      <div className="text-white font-medium">
+
+                    {/* TEXTE (Flexible) */}
+                    {/* min-w-0 est vital pour que le truncate fonctionne dans un flex */}
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-white font-medium text-[10px] 2xl:text-sm truncate w-full block leading-tight">
                         {agent.firstname} {agent.lastname}
-                      </div>
+                      </span>
+
+                      {/* ✅ Correction CSS : Suppression de 'block' conflictuel, ExternalLink réutilisé */}
                       <Link
                         href={`/agent/${agent.slug}`}
                         target="_blank"
-                        className="text-xs text-barth-gold/70 hover:text-barth-gold flex items-center gap-1"
+                        className="text-[9px] 2xl:text-xs text-barth-gold/70 hover:text-barth-gold flex items-center gap-1 truncate w-full mt-0.5"
                       >
-                        {agent.slug}.barth.com <ExternalLink size={10} />
+                        <span className="truncate">{agent.slug}</span>
+                        <ExternalLink size={8} className="shrink-0" />
                       </Link>
                     </div>
                   </div>
                 </td>
 
                 {/* 2. STATUT */}
-                <td className="px-6 py-4">
-                  <div className="relative group/tooltip inline-block">
-                    <button
-                      onClick={() => !isCompliant && handleEditClick(agent)}
-                      disabled={isCompliant}
-                      className={`
-                            flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all
-                            ${
-                              isCompliant
-                                ? "bg-green-500/10 border-green-500/20 text-green-400 cursor-default"
-                                : "bg-red-500/10 border-red-500/20 text-red-400 animate-pulse-slow hover:bg-red-500/20 cursor-pointer"
-                            }
-                          `}
-                    >
-                      {isCompliant ? (
-                        <CheckCircle2 size={14} />
-                      ) : (
-                        <AlertCircle size={14} />
-                      )}
-                      {isCompliant ? "Conforme" : "Action requise"}
-                    </button>
-
-                    {!isCompliant && (
-                      <div className="absolute left-0 bottom-full mb-2 w-48 p-3 bg-black border border-white/10 rounded-xl shadow-xl opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-50">
-                        <div className="text-xs font-bold text-white mb-1">
-                          Manquant :
-                        </div>
-                        <ul className="list-disc list-inside text-xs text-gray-400">
-                          {missingFields.map((field, i) => (
-                            <li key={i}>{field}</li>
-                          ))}
-                        </ul>
-                        <div className="mt-2 text-[10px] text-barth-gold italic">
-                          Cliquez pour corriger
-                        </div>
-                      </div>
+                <td className="px-1 py-2 text-center align-middle">
+                  <div className="flex justify-center">
+                    {isCompliant ? (
+                      <CheckCircle2 size={12} className="text-green-400" />
+                    ) : (
+                      <AlertCircle size={12} className="text-red-400" />
                     )}
                   </div>
                 </td>
 
-                {/* 3. LOCALISATION */}
-                <td className="px-6 py-4">
-                  <div className="flex flex-col">
-                    <span className="text-gray-300 flex items-center gap-1.5">
-                      <MapPin size={14} className="text-gray-600" />{" "}
-                      {agent.city || "Ville non renseignée"}
-                    </span>
-                    <span className="text-xs text-gray-600 pl-5">
-                      {agent.zipCode || "Code postal manquant"}
-                    </span>
-                  </div>
-                </td>
-
-                {/* 4. VISITES */}
-                <td className="px-6 py-4 text-center">
-                  <span className="font-mono text-white/80">
-                    {(agent.lastname.length + agent.firstname.length) * 123}
-                  </span>
-                  <span className="text-xs text-gray-600 ml-1">vues</span>
-                </td>
-
-                {/* 5. ACTIONS */}
-                <td className="px-6 py-4 text-right">
-                  <div className="flex items-center justify-end gap-2">
+                {/* 3. ACTIONS */}
+                <td className="px-2 py-2 text-right align-middle">
+                  <div className="flex items-center justify-end gap-1">
                     <button
-                      onClick={() => handleEditClick(agent)}
-                      className="p-2 rounded-lg bg-barth-gold text-barth-dark hover:bg-white hover:text-black transition font-medium text-xs flex items-center gap-2 shadow-lg shadow-barth-gold/10"
+                      onClick={() => setEditingAgent(agent)}
+                      className="p-1 rounded bg-barth-gold text-barth-dark hover:bg-white transition shrink-0"
                     >
-                      <Edit size={14} />
-                      {isCompliant ? "Éditer" : "Compléter"}
+                      <Edit size={10} />
                     </button>
-
-                    <button className="p-2 rounded-lg hover:bg-white/5 text-gray-500 hover:text-red-400 transition">
-                      <Trash2 size={16} />
+                    {/* ✅ Trash2 réutilisé pour éviter l'erreur unused var */}
+                    <button className="p-1 rounded text-gray-600 hover:text-red-400 transition shrink-0">
+                      <Trash2 size={10} />
                     </button>
                   </div>
                 </td>

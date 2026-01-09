@@ -3,35 +3,53 @@
 .sidebarContainer {
   --barth-gold: #d4af37;
   --barth-dark: #1a1a1a;
-  --glass-bg: rgba(
-    20,
-    20,
-    20,
-    0.4
-  ); /* Fond un peu plus sombre pour le contraste */
   --glass-bg: rgba(30, 32, 35, 0.65);
   --glass-border: rgba(212, 175, 55, 0.15);
   --text-grey: #a1a1aa;
   --sidebar-collapsed-width: 5rem;
-  --sidebar-expanded-width: 13rem; /* Largeur une fois ouvert */
-}
-.sidebar {
-  /* CHANGEMENT MAJEUR : On passe de fixed à relative */
-  position: relative;
-  /* On enlève les top/left/transform qui cassaient tout */
-  top: auto;
-  left: auto;
-  transform: none;
+  --sidebar-expanded-width: 13rem;
 
-  /* On la colle à gauche avec une marge */
-  margin-top: 24px;
-  margin-left: 24px;
-  height: calc(100% - 48px); /* Hauteur totale moins les marges haut/bas */
+  /* ✅ POSITIONNEMENT GLOBAL : CENTRÉ VERTICALEMENT */
+  position: sticky; /* Reste fixe au scroll */
+  left: 0;
+  top: 0;
+  height: 100vh; /* Prend toute la hauteur */
+  display: flex;
+  flex-direction: column; /* Empile Logo + Sidebar */
+  justify-content: center; /* Centre verticalement */
+  align-items: flex-start; /* Aligne à gauche */
+  padding-left: 24px; /* Marge gauche constante */
+  z-index: 50;
+  gap: 20px; /* Espace entre le logo et la carte */
+}
+
+/* ✅ NOUVEAU STYLE POUR LE LOGO (Au-dessus) */
+.brandLogo {
+  width: var(--sidebar-collapsed-width); /* Même largeur que la barre fermée */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1); /* Animation synchro avec la sidebar */
+}
+
+/* Quand on survole la sidebar (via un sélecteur parent astucieux en JS ou CSS simple) */
+/* Note: CSS pur ne permet pas de changer le logo quand on hover le frere. 
+   On va laisser le logo centré sur la largeur fermée, c'est plus élégant */
+
+.sidebar {
+  position: relative;
+  /* On retire les marges car c'est le conteneur parent qui gère le positionnement */
+  margin: 0;
+
+  /* Hauteur automatique selon le contenu (plus de calc 100%) */
+  height: auto;
+  /* Mais on limite pour que ça ne dépasse pas l'écran */
+  max-height: 85vh;
 
   width: var(--sidebar-collapsed-width);
   min-height: 400px;
 
-  /* Le reste de ton style Glassmorphism reste identique */
+  /* Glassmorphism */
   background-color: var(--glass-bg);
   backdrop-filter: blur(50px) saturate(180%);
   -webkit-backdrop-filter: blur(50px) saturate(180%);
@@ -40,43 +58,38 @@
     inset 0 1px 1px rgba(255, 255, 255, 0.1),
     inset 0 0 20px rgba(255, 255, 255, 0.02);
   border-radius: 24px;
+
   display: flex;
   flex-direction: column;
-  padding: 1.5rem 1rem;
+  padding: 1.5rem 0.5rem; /* Ajustement padding horizontal */
   gap: 1.5rem;
   overflow: hidden;
   transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1);
 }
-/* --- Au survol de la Sidebar --- */
+
+/* --- Au survol --- */
 .sidebar:hover {
   width: var(--sidebar-expanded-width);
-  align-items: stretch; /* Étire les éléments pour qu'ils prennent la largeur */
 }
 
-/* --- Bouton Déconnexion (Header) --- */
+/* --- Header (User) --- */
 .header {
   display: flex;
   align-items: center;
-  /* État fermé : on force le centrage absolu */
-  justify-content: center;
-
+  justify-content: center; /* Centré par défaut */
   position: relative;
-  height: 4rem; /* Hauteur fixe */
+  height: 4rem;
   width: 100%;
-
-  /* On retire tout padding quand c'est fermé pour éviter le décalage */
   padding: 0;
-
   transition: all 0.3s ease;
-  overflow: hidden; /* Coupe ce qui dépasse */
+  overflow: hidden;
 }
 
 .logoutBtn {
   width: 3rem;
   height: 3rem;
-  min-width: 3rem; /* Crucial : empêche l'écrasement */
+  min-width: 3rem;
   min-height: 3rem;
-
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -87,38 +100,34 @@
   box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
   border: none;
   cursor: pointer;
-
-  z-index: 10; /* S'assure qu'il est au-dessus */
-  flex-shrink: 0; /* Crucial : interdit au bouton de rétrécir */
-
+  z-index: 10;
+  flex-shrink: 0;
   transition: transform 0.2s;
 }
 
 .headerText {
-  /* État fermé : Largeur ZÉRO strict */
   width: 0;
   opacity: 0;
   margin-left: 0;
   overflow: hidden;
   white-space: nowrap;
-
   transition: all 0.3s ease;
-
-  /* Style du texte */
   color: white;
   font-weight: 500;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
+
 .sidebar:hover .header {
-  justify-content: flex-start; /* On aligne à gauche */
-  padding-left: 12px; /* On ajoute un peu d'espace à gauche */
+  justify-content: flex-start;
+  padding-left: 12px;
 }
+
 .sidebar:hover .headerText {
   width: auto;
   opacity: 1;
-  margin-left: 1.5rem;
+  margin-left: 1rem;
   transition-delay: 0.1s;
 }
 
@@ -140,34 +149,29 @@
   flex-direction: column;
   gap: 0.75rem;
   width: 100%;
+  /* ✅ On permet à la nav de s'étendre verticalement pour remplir l'espace si besoin */
+  justify-content: center;
+  flex: 1; /* Prend l'espace disponible */
 }
 
 .navLink {
   display: flex;
   align-items: center;
-  /* CRUCIAL : On centre le contenu par défaut (état fermé) */
-  justify-content: center;
-  padding: 0.75rem 0; /* On retire le padding horizontal pour garantir le centrage parfait */
-  width: 100%; /* S'assure de prendre toute la largeur */
-
+  justify-content: center; /* Centré par défaut */
+  padding: 0; /* Pas de padding H pour centrer l'icône */
+  width: 100%;
+  height: 3rem;
   border-radius: 12px;
   color: var(--text-grey);
   text-decoration: none;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  height: 3rem; /* Hauteur fixe pour éviter les sauts */
 }
 
-/* Centrage de l'icône quand fermé */
-.navLink {
-  justify-content: center;
-}
-
-/* Alignement gauche quand ouvert */
 .sidebar:hover .navLink {
   justify-content: flex-start;
-  padding-left: 1.5rem; /* On remet un peu d'espace à gauche */
+  padding-left: 1.5rem; /* Espace gauche ouvert */
 }
 
 .navLink:hover {
@@ -175,33 +179,26 @@
   color: #fff;
 }
 
-/* --- État Actif (Page courante) --- */
 .active {
-  background-color: rgba(212, 175, 55, 0.15); /* Fond doré léger */
+  background-color: rgba(212, 175, 55, 0.15);
   color: var(--barth-gold);
   border: 1px solid rgba(212, 175, 55, 0.2);
   box-shadow: 0 0 15px rgba(212, 175, 55, 0.05);
 }
 
-/* Icône fixe */
 .navIcon {
-  min-width: 24px; /* Fixe la taille pour que l'icône ne bouge pas */
+  min-width: 24px;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* Texte des liens */
 .linkText {
   width: 0;
   opacity: 0;
   overflow: hidden;
   white-space: nowrap;
-
-  /* Transition fluide */
   transition: opacity 0.2s ease, width 0.3s ease, margin-left 0.3s ease;
-
-  /* Pas de marge pour ne pas pousser l'icône */
   margin-left: 0;
   font-size: 0.95rem;
 }
@@ -209,17 +206,19 @@
 .sidebar:hover .linkText {
   width: auto;
   opacity: 1;
-  margin-left: 1.5rem;
+  margin-left: 1rem;
   transition-delay: 0.1s;
 }
 
-/* Footer */
+/* --- Footer --- */
 .footerLogo {
   margin-top: auto;
   text-align: center;
   opacity: 0.5;
   transition: opacity 0.3s;
+  padding-bottom: 0.5rem;
 }
+
 .sidebar:hover .footerLogo {
   opacity: 1;
 }

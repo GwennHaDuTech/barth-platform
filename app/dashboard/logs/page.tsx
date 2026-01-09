@@ -10,7 +10,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Search,
   User,
   AlertTriangle,
   Loader2,
@@ -101,7 +100,8 @@ export default function LogsPage() {
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-light text-white mb-2 flex items-center gap-3">
-            <Activity className="text-barth-gold" /> Journal d'activité
+            <Activity className="text-barth-gold" />
+            {` Journal d'activité`}
           </h1>
           <p className="text-gray-400 text-sm">
             Historique complet des actions effectuées sur la plateforme.

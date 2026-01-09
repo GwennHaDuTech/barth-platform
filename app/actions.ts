@@ -282,3 +282,46 @@ export async function getAgencies() {
     return [];
   }
 }
+export async function trackVisit(data: {
+  agentId?: string;
+  agencyId?: string;
+}) {
+  if (!data.agentId && !data.agencyId) return { success: false };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // On normalise la date à minuit pour regrouper par jour
+
+  try {
+    // 1. On cherche s'il existe déjà une ligne pour aujourd'hui
+    const existingEntry = await prisma.analytics.findFirst({
+      where: {
+        date: today,
+        agentId: data.agentId ?? null,
+        agencyId: data.agencyId ?? null,
+      },
+    });
+
+    if (existingEntry) {
+      // 2. Si oui, on incrémente
+      await prisma.analytics.update({
+        where: { id: existingEntry.id },
+        data: { visits: { increment: 1 } },
+      });
+    } else {
+      // 3. Sinon, on crée la ligne
+      await prisma.analytics.create({
+        data: {
+          date: today,
+          visits: 1,
+          agentId: data.agentId ?? null,
+          agencyId: data.agencyId ?? null,
+        },
+      });
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur tracking visite:", error);
+    return { success: false, error };
+  }
+}
