@@ -113,7 +113,7 @@ export async function sendAgentNotification({
 
   try {
     const data = await resend.emails.send({
-      from: "Barth Platform <onboarding@resend.dev>",
+      from: "Barth Platform <onboarding@paulbroussouloux-barthimmobilier.fr>",
       to: [email],
       subject: subject,
       html: htmlTemplate,
