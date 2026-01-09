@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-// ✅ 1. IMPORT OBLIGATOIRE POUR QUE <Image /> FONCTIONNE
 import Image from "next/image";
 import {
   Home,
@@ -15,14 +14,18 @@ import {
 } from "lucide-react";
 import { useClerk, useUser } from "@clerk/nextjs";
 import styles from "./Sidebar.module.css";
-// On enlève l'import AdminPanel s'il n'est pas utilisé dans ce snippet, sinon garde-le
-// import AdminPanel from "@/components/AdminPanel";
+
+// ✅ 1. IMPORT DU COMPOSANT ADMIN PANEL
+// Assure-toi que ce fichier existe bien dans components/AdminPanel.tsx
+import AdminPanel from "@/components/AdminPanel";
 
 const Sidebar = () => {
   const pathname = usePathname();
   const { user } = useUser();
   const { signOut } = useClerk();
-  // const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false); // Décommente si tu utilises le panel
+
+  // ✅ 2. GESTION DE L'ÉTAT D'OUVERTURE DU PANNEAU
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
 
   const handleLogout = () => {
     signOut({ redirectUrl: "/" });
@@ -36,20 +39,20 @@ const Sidebar = () => {
 
   return (
     <div className={styles.sidebarContainer}>
-      {/* Si tu as un AdminPanel, décommente ceci :
-         {isAdminPanelOpen && <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />}
-      */}
+      {/* ✅ 3. AFFICHAGE DE LA MODALE ADMIN SI OUVERTE */}
+      {isAdminPanelOpen && (
+        <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />
+      )}
 
       {/* --- LOGO --- */}
       <div className={styles.brandLogo}>
-        {/* ✅ 2. CORRECTION SYNTAXE IMAGE */}
         <Image
-          src="/logo.png" // Assure-toi que logo.avif est dans le dossier 'public'
+          src="/logo.png"
           alt="Barth Logo"
           width={120}
           height={40}
           className="object-contain"
-          priority // Charge l'image en priorité (LCP)
+          priority
         />
       </div>
 
@@ -66,7 +69,7 @@ const Sidebar = () => {
           </button>
           <div className={styles.headerText}>
             <span className="text-sm font-bold truncate block max-w-[120px]">
-              {user?.fullName || "Admin"}
+              {user?.fullName || "Utilisateur"}
             </span>
             <span className="text-[10px] text-gray-400">Déconnexion</span>
           </div>
@@ -109,7 +112,6 @@ const Sidebar = () => {
             </div>
             <span className={styles.linkText}>Agences</span>
           </Link>
-
           <Link
             href="/dashboard/logs"
             className={`${styles.navLink} ${
@@ -121,13 +123,21 @@ const Sidebar = () => {
             </div>
             <span className={styles.linkText}>Logs Activité</span>
           </Link>
+          <button
+            onClick={() => setIsAdminPanelOpen(true)}
+            className={`${styles.navLink} w-full text-left`}
+          >
+            <div className={styles.navIcon}>
+              <Settings size={20} />
+            </div>
+            <span className={styles.linkText}>Panneau Admin</span>
+          </button>
         </nav>
 
-        {/* Footer User Avatar (Correction de l'erreur <img>) */}
+        {/* Footer User Avatar */}
         <div className="mt-auto flex items-center justify-center p-4">
           <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/10">
             {user?.imageUrl ? (
-              // ✅ 3. UTILISATION DE <Image /> AU LIEU DE <img>
               <Image
                 src={user.imageUrl}
                 alt="Profile"
