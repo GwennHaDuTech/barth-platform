@@ -1,7 +1,5 @@
 import React from "react";
-// ⚠️ VÉRIFIE CE CHEMIN : Si ton Sidebar est dans components/Dashboard, garde cette ligne :
 import Sidebar from "../../components/Sidebar";
-// Sinon, si c'est components/Sidebar.tsx, utilise : import Sidebar from "@/components/Sidebar";
 
 import { Toaster } from "sonner";
 import { currentUser } from "@clerk/nextjs/server";

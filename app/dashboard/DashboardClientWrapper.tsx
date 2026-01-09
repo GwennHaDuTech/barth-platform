@@ -201,7 +201,7 @@ export default function DashboardClientWrapper({
         />
       </div>
 
-      <div className="h-[350px] w-full shrink-0">
+      <div className="h-87.5 w-full shrink-0">
         <GlassCard className="h-full p-4 lg:p-6 flex flex-col bg-black/20 border-white/10">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-4">
             <div>
